@@ -1,3 +1,17 @@
+import type { SitemapOptions } from './sitemap/types.js'
+
+export type { SitemapOptions }
+export type {
+  SitemapEntry,
+  ResolvedSitemapEntry,
+  SitemapSource,
+  PriorityRule,
+  ChangefreqRule,
+  I18nOptions,
+  Changefreq,
+  AuditIssue,
+} from './sitemap/types.js'
+
 export interface RobotsOptions {
   disallow?: string[]
   allow?: string[]
@@ -59,11 +73,11 @@ export interface HumansOptions {
 export interface SiteFilesOptions {
   /** robots.txt — enabled by default */
   robots?: RobotsOptions | boolean
-  /** llms.txt — disabled unless configured */
+  /** llms.txt — disabled unless configured with { title } */
   llms?: LlmsOptions | boolean
-  /** sitemap.xml via @casoon/astro-sitemap — enabled by default */
-  sitemap?: Record<string, unknown> | boolean
-  /** /.well-known/security.txt — disabled unless configured with contact */
+  /** sitemap.xml — enabled by default, generated directly in astro:build:done */
+  sitemap?: SitemapOptions | boolean
+  /** /.well-known/security.txt — disabled unless configured with { contact } */
   security?: SecurityOptions | boolean
   /** humans.txt — disabled unless configured */
   humans?: HumansOptions | boolean

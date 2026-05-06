@@ -1,6 +1,6 @@
 {
   "name": "@casoon/astro-site-files",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Astro integration that generates robots.txt, llms.txt, sitemap.xml, security.txt, and humans.txt at build time from typed configuration.",
   "type": "module",
   "main": "./dist/index.js",
@@ -52,9 +52,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
-    "@casoon/astro-sitemap": "^0.2.2"
-  },
+  "dependencies": {},
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

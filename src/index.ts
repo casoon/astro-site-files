@@ -7,8 +7,19 @@ export type {
   SecurityOptions,
   HumansOptions,
   HumansTeamMember,
+  SitemapOptions,
+  SitemapEntry,
+  ResolvedSitemapEntry,
+  SitemapSource,
+  PriorityRule,
+  ChangefreqRule,
+  I18nOptions,
+  Changefreq,
 } from './types.js'
 export { renderRobotsTxt } from './robots.js'
 export { renderLlmsTxt } from './llms.js'
 export { renderSecurityTxt } from './security.js'
 export { renderHumansTxt } from './humans.js'
+export { renderSitemapXml, renderSitemapIndex } from './sitemap/render.js'
+export { resolveEntry, deduplicateEntries } from './sitemap/compile.js'
+export { auditSitemap } from './sitemap/audit.js'
