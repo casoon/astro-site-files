@@ -53,7 +53,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@casoon/astro-sitemap": "file:../astro-sitemap"
+    "@casoon/astro-sitemap": "^0.2.2"
   },
   "scripts": {
     "build": "tsc",
