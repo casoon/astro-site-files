@@ -17,6 +17,7 @@ import { renderRobotsTxt } from './robots.js'
 import { renderLlmsTxt } from './llms.js'
 import { renderSecurityTxt } from './security.js'
 import { renderHumansTxt } from './humans.js'
+import { auditHumans, auditLlms, auditRobots, auditSecurity } from './audit.js'
 
 const TODAY = new Date().toISOString().split('T')[0]!
 const PLUGIN = '@casoon/astro-site-files'
@@ -189,6 +190,9 @@ async function writeRobots(
   const robotsOpts: RobotsOptions = typeof options.robots === 'object' ? options.robots : {}
   await writeFile(join(outDir, 'robots.txt'), renderRobotsTxt(robotsOpts, siteUrl), 'utf-8')
   logger.info('robots.txt generated')
+  for (const issue of auditRobots(robotsOpts)) {
+    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
+  }
 }
 
 async function writeLlms(
@@ -203,6 +207,9 @@ async function writeLlms(
   }
   await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(options.llms), 'utf-8')
   logger.info('llms.txt generated')
+  for (const issue of auditLlms(options.llms)) {
+    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
+  }
 }
 
 async function writeSecurity(
@@ -219,6 +226,9 @@ async function writeSecurity(
   await mkdir(wellKnownDir, { recursive: true })
   await writeFile(join(wellKnownDir, 'security.txt'), renderSecurityTxt(options.security), 'utf-8')
   logger.info('.well-known/security.txt generated')
+  for (const issue of auditSecurity(options.security)) {
+    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
+  }
 }
 
 async function writeHumans(
@@ -230,6 +240,9 @@ async function writeHumans(
   const humansOpts: HumansOptions = typeof options.humans === 'object' ? options.humans : {}
   await writeFile(join(outDir, 'humans.txt'), renderHumansTxt(humansOpts), 'utf-8')
   logger.info('humans.txt generated')
+  for (const issue of auditHumans(humansOpts)) {
+    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
+  }
 }
 
 async function writeSitemap(
