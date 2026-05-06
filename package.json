@@ -1,0 +1,65 @@
+{
+  "name": "@casoon/astro-site-files",
+  "version": "0.1.0",
+  "description": "Astro integration that generates robots.txt, llms.txt, sitemap.xml, security.txt, and humans.txt",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "astro",
+    "astro-integration",
+    "withastro",
+    "robots.txt",
+    "llms.txt",
+    "sitemap",
+    "security.txt",
+    "humans.txt",
+    "seo"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/casoon/astro-site-files#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/casoon/astro-site-files.git"
+  },
+  "bugs": {
+    "url": "https://github.com/casoon/astro-site-files/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "astro": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@casoon/astro-sitemap": "file:../astro-sitemap"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "typescript": "^5.8.3"
+  }
+}
