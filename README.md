@@ -307,6 +307,51 @@ Each entry in `team`:
     Astro, TypeScript, Tailwind CSS
 ```
 
+## Build-time audit hints
+
+The integration emits build-time hints when configuration looks incomplete or incorrect. Each hint has a rule ID, a level (`info` / `warn`), and a help message.
+
+**All rule IDs:**
+
+| Rule ID | Level | Triggered when |
+|---|---|---|
+| `robots/legal-pages-blocked` | warn | A legal page (`/privacy`, `/terms`, `/impressum`, …) is in `disallow` |
+| `llms/no-description` | info | `llms` has no `description` |
+| `llms/no-sections` | info | `llms` has no `sections` |
+| `llms/sections-without-links` | info | Sections exist but none have `links` |
+| `security/no-expires` | warn | `security` has no `expires` date (required by RFC 9116) |
+| `security/no-policy` | info | `security` has no `policy` URL |
+| `humans/no-team` | info | `humans` has no `team` entries |
+| `humans/no-technology` | info | `humans` has no `technology` entries |
+
+**Disable all hints:**
+
+```ts
+siteFiles({ audit: false })
+```
+
+**Suppress specific rules:**
+
+```ts
+siteFiles({
+  audit: {
+    disable: [
+      'llms/no-description',
+      'security/no-expires',
+    ],
+  },
+})
+```
+
+**`audit` option reference:**
+
+| Option | Type | Description |
+|---|---|---|
+| `enabled` | `boolean` | Set to `false` to silence all hints |
+| `disable` | `string[]` | Rule IDs to suppress individually |
+
+Passing `audit: false` is equivalent to `audit: { enabled: false }`.
+
 ## Option defaults
 
 | Option | Default behavior |
@@ -316,6 +361,7 @@ Each entry in `team`:
 | `sitemap` | Enabled — built-in sitemap generation from Astro's build output |
 | `security` | Disabled — requires `{ contact }` |
 | `humans` | Disabled — generates when any option is provided |
+| `audit` | Enabled — emits build-time hints for all generated files |
 
 ## Programmatic usage
 
@@ -331,8 +377,14 @@ import {
   renderSitemapIndex,
   resolveEntry,
   deduplicateEntries,
-  auditSitemap
+  auditSitemap,
+  auditRobots,
+  auditLlms,
+  auditSecurity,
+  auditHumans,
+  filterIssues,
 } from '@casoon/astro-site-files'
+import type { AuditOptions, AuditIssue } from '@casoon/astro-site-files'
 
 const robots = renderRobotsTxt({ disallow: ['/admin'] }, 'https://example.com')
 const llms = renderLlmsTxt({ title: 'My Site', description: 'A site.' })
