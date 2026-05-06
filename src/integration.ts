@@ -25,7 +25,7 @@ interface AstroIntegration {
 
 interface ConfigSetupHookParams {
   config: AstroConfig
-  addIntegration: (integration: AstroIntegration) => void
+  updateConfig: (newConfig: { integrations?: AstroIntegration[] }) => void
 }
 
 interface BuildDoneHookParams {
@@ -39,13 +39,13 @@ export default function siteFiles(options: SiteFilesOptions = {}): AstroIntegrat
   return {
     name: '@casoon/astro-site-files',
     hooks: {
-      'astro:config:setup'({ config, addIntegration }: ConfigSetupHookParams) {
+      'astro:config:setup'({ config, updateConfig }: ConfigSetupHookParams) {
         siteUrl = config.site
 
         if (options.sitemap !== false) {
           const sitemapOpts =
             typeof options.sitemap === 'object' ? options.sitemap : {}
-          addIntegration(astroSitemap(sitemapOpts) as AstroIntegration)
+          updateConfig({ integrations: [astroSitemap(sitemapOpts) as AstroIntegration] })
         }
       },
 
