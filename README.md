@@ -12,6 +12,8 @@ Astro integration that generates all standard site meta-files from typed configu
 
 All files are written to the build output directory when `astro build` runs.
 
+> **Successor package.** This integration replaces [@casoon/astro-crawler-policy](https://github.com/casoon/astro-crawler-policy) (robots.txt + llms.txt) and [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) (sitemap.xml). Both predecessor packages are no longer actively maintained.
+
 ## Installation
 
 ```sh
