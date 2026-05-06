@@ -6,7 +6,7 @@ Astro integration that generates all standard site meta-files from typed configu
 
 - Generates `robots.txt` — crawl rules with per-agent overrides and automatic sitemap reference
 - Generates `llms.txt` — AI model discovery file following the [llmstxt.org](https://llmstxt.org) specification
-- Generates `sitemap.xml` — via [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) (enabled by default)
+- Generates `sitemap.xml` — built-in, enabled by default, with i18n hreflang and sitemap-index support
 - Generates `/.well-known/security.txt` — vulnerability disclosure contact per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116)
 - Generates `humans.txt` — team and technology credits per [humanstxt.org](https://humanstxt.org)
 
@@ -164,20 +164,48 @@ This site documents internal tools and workflows.
 
 ## sitemap.xml
 
-Sitemap generation is handled by [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) and enabled by default. Pass any `@casoon/astro-sitemap` options directly:
+Sitemap generation is built-in and enabled by default. Static pages are discovered automatically from Astro's build output. Dynamic URLs can be added via `sources`.
 
 ```ts
 siteFiles({
   sitemap: {
     exclude: ['/landing/'],
-    priority: [{ pattern: '/blog/', value: 0.9 }]
+    priority: [{ pattern: '/blog/', priority: 0.9 }],
+    sources: [
+      async () => {
+        const posts = await getCollection('blog')
+        return posts.map(p => ({ loc: `/blog/${p.id}/`, lastmod: p.data.date }))
+      }
+    ]
   }
 })
 ```
 
-**Disable:** `sitemap: false`
+**Option reference:**
 
-See the [@casoon/astro-sitemap documentation](https://github.com/casoon/astro-sitemap) for the full option reference.
+| Option | Type | Description |
+|---|---|---|
+| `siteUrl` | `string` | Override the site URL (auto-detected from `astro.config.site`) |
+| `sources` | `SitemapSource[]` | Async functions returning additional `SitemapEntry[]` |
+| `exclude` | `(string \| RegExp)[]` | URL paths or patterns to exclude |
+| `filter` | `(url: string) => boolean` | Custom filter on the full absolute URL |
+| `priority` | `PriorityRule[]` | Pattern-based priority overrides (first match wins) |
+| `changefreq` | `ChangefreqRule[]` | Pattern-based changefreq overrides (first match wins) |
+| `serialize` | `(entry) => entry \| undefined` | Per-item transform or filter hook |
+| `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries |
+| `output.mode` | `'single' \| 'index'` | `index` splits into numbered chunks (auto when > `maxUrls`) |
+| `output.maxUrls` | `number` | Max URLs per file in index mode — default `50 000` |
+| `output.filename` | `string` | Output filename — default `sitemap.xml` |
+| `audit.warnOnEmpty` | `boolean` | Warn when sitemap has zero entries — default `true` |
+| `audit.errorOnDuplicates` | `boolean` | Emit error instead of warning for duplicate URLs — default `false` |
+
+**Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `/api/`, `/landing/`, `/drafts/`, `sitemap.xml`, `robots.txt`, `llms.txt`, `rss.xml`.
+
+**Built-in priority defaults:** `/` → 1.0, depth 1 → 0.9, depth 2 → 0.8, depth 3+ → 0.7
+
+**Built-in changefreq defaults:** `/` and content paths (`/blog/`, `/artikel/`, etc.) → `weekly`, everything else → `monthly`
+
+**Disable:** `sitemap: false`
 
 ## security.txt
 
@@ -283,7 +311,7 @@ Each entry in `team`:
 |---|---|
 | `robots` | Enabled — generates `robots.txt` with `Disallow:` (allow all) |
 | `llms` | Disabled — requires `{ title }` |
-| `sitemap` | Enabled — delegates to `@casoon/astro-sitemap` |
+| `sitemap` | Enabled — built-in sitemap generation from Astro's build output |
 | `security` | Disabled — requires `{ contact }` |
 | `humans` | Disabled — generates when any option is provided |
 
@@ -296,13 +324,21 @@ import {
   renderRobotsTxt,
   renderLlmsTxt,
   renderSecurityTxt,
-  renderHumansTxt
+  renderHumansTxt,
+  renderSitemapXml,
+  renderSitemapIndex,
+  resolveEntry,
+  deduplicateEntries,
+  auditSitemap
 } from '@casoon/astro-site-files'
 
 const robots = renderRobotsTxt({ disallow: ['/admin'] }, 'https://example.com')
 const llms = renderLlmsTxt({ title: 'My Site', description: 'A site.' })
 const security = renderSecurityTxt({ contact: 'mailto:security@example.com' })
 const humans = renderHumansTxt({ team: [{ name: 'Alice' }], technology: ['Astro'] })
+
+const entries = [{ loc: '/blog/post/' }].map(e => resolveEntry(e, {}, 'https://example.com'))
+const xml = renderSitemapXml(deduplicateEntries(entries))
 ```
 
 ---
