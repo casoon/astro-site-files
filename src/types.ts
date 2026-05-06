@@ -81,5 +81,10 @@ export interface SiteFilesOptions {
   security?: SecurityOptions | boolean
   /** humans.txt — disabled unless configured */
   humans?: HumansOptions | boolean
+  /**
+   * Build-time audit hints — warns about misconfigurations and missing fields.
+   * Set to false to silence all hints, or pass { disable: ['rule/id'] } to suppress specific rules.
+   */
+  audit?: import('./audit.js').AuditOptions | boolean
   debug?: boolean
 }

@@ -7,6 +7,24 @@ export interface AuditIssue {
   help: string
 }
 
+export interface AuditOptions {
+  /** Set to false to silence all build-time audit hints. Default: true */
+  enabled?: boolean
+  /** Rule IDs to suppress individually, e.g. ['llms/no-sections', 'humans/no-team'] */
+  disable?: string[]
+}
+
+export function filterIssues(issues: AuditIssue[], options: AuditOptions | boolean | undefined): AuditIssue[] {
+  if (options === false) return []
+  if (typeof options === 'object') {
+    if (options.enabled === false) return []
+    if (options.disable?.length) {
+      return issues.filter(i => !options.disable!.includes(i.rule))
+    }
+  }
+  return issues
+}
+
 // ── robots.txt ────────────────────────────────────────────────────────────────
 
 const LEGAL_PATTERNS = [
