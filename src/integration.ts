@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
@@ -121,6 +121,14 @@ function buildI18nLinks(
     }))
     return { ...entry, links }
   })
+}
+
+async function fileLastmod(outDir: string, urlPath: string): Promise<string | undefined> {
+  const filePath = urlPath === '/' || urlPath.endsWith('/')
+    ? join(outDir, urlPath, 'index.html')
+    : join(outDir, urlPath)
+  const s = await stat(filePath).catch(() => null)
+  return s ? s.mtime.toISOString().split('T')[0] : undefined
 }
 
 // ── Integration ───────────────────────────────────────────────────────────────
@@ -258,7 +266,8 @@ async function writeSitemap(
     }
     const fullUrl = effectiveSiteUrl ? `${effectiveSiteUrl}${urlPath}` : urlPath
     if (shouldSkip(urlPath, sitemapOpts.exclude ?? [], sitemapOpts.filter, fullUrl)) continue
-    staticEntries.push({ loc: fullUrl })
+    const lastmod = await fileLastmod(outDir, urlPath)
+    staticEntries.push({ loc: fullUrl, lastmod })
   }
 
   // ── Collect dynamic sources ───────────────────────────────────────────────
