@@ -1,4 +1,5 @@
 export { default } from './integration.js'
+export { default as siteFiles } from './integration.js'
 export type {
   SiteFilesOptions,
   RobotsOptions,
