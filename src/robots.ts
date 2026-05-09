@@ -51,7 +51,7 @@ export function renderRobotsTxt(options: RobotsOptions, siteUrl?: string): strin
       typeof options.sitemap === 'string'
         ? options.sitemap
         : siteUrl
-          ? new URL('/sitemap.xml', siteUrl).href
+          ? `${siteUrl.replace(/\/$/, '')}/sitemap.xml`
           : undefined
     if (sitemapUrl) {
       lines.push('')

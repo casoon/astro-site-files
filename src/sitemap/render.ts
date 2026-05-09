@@ -2,6 +2,15 @@ import type { ResolvedSitemapEntry } from './types.js'
 
 const XML_HEADER = '<?xml version="1.0" encoding="UTF-8"?>'
 
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
+}
+
 export function renderSitemapXml(entries: ResolvedSitemapEntry[], comment?: string): string {
   const hasHreflang = entries.some(e => e.links && e.links.length > 0)
   const urlsetAttrs = hasHreflang
@@ -14,13 +23,13 @@ export function renderSitemapXml(entries: ResolvedSitemapEntry[], comment?: stri
 
   for (const entry of entries) {
     lines.push('  <url>')
-    lines.push(`    <loc>${entry.loc}</loc>`)
-    lines.push(`    <lastmod>${entry.lastmod}</lastmod>`)
-    lines.push(`    <changefreq>${entry.changefreq}</changefreq>`)
+    lines.push(`    <loc>${escapeXml(entry.loc)}</loc>`)
+    lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
+    lines.push(`    <changefreq>${escapeXml(entry.changefreq)}</changefreq>`)
     lines.push(`    <priority>${entry.priority.toFixed(1)}</priority>`)
     if (entry.links) {
       for (const link of entry.links) {
-        lines.push(`    <xhtml:link rel="alternate" hreflang="${link.hreflang}" href="${link.href}"/>`)
+        lines.push(`    <xhtml:link rel="alternate" hreflang="${escapeXml(link.hreflang)}" href="${escapeXml(link.href)}"/>`)
       }
     }
     lines.push('  </url>')
@@ -37,8 +46,8 @@ export function renderSitemapIndex(sitemaps: Array<{ loc: string; lastmod: strin
   ]
   for (const sm of sitemaps) {
     lines.push('  <sitemap>')
-    lines.push(`    <loc>${sm.loc}</loc>`)
-    lines.push(`    <lastmod>${sm.lastmod}</lastmod>`)
+    lines.push(`    <loc>${escapeXml(sm.loc)}</loc>`)
+    lines.push(`    <lastmod>${escapeXml(sm.lastmod)}</lastmod>`)
     lines.push('  </sitemap>')
   }
   lines.push('</sitemapindex>')

@@ -84,6 +84,20 @@ function shouldSkip(
   return false
 }
 
+function filterSitemapIssues(
+  issues: AuditIssue[],
+  options: SiteFilesOptions['audit'],
+): AuditIssue[] {
+  if (options === false) return []
+  if (typeof options === 'object') {
+    if (options.enabled === false) return []
+    if (options.disable?.length) {
+      return issues.filter(issue => !options.disable!.includes(issue.code))
+    }
+  }
+  return issues
+}
+
 function buildI18nLinks(
   entries: ResolvedSitemapEntry[],
   i18n: I18nOptions,
@@ -165,7 +179,7 @@ export default function siteFiles(options: SiteFilesOptions = {}): AstroIntegrat
       }) {
         const outDir = fileURLToPath(dir)
 
-        await writeRobots(outDir, options, astroConfig?.site, logger)
+        await writeRobots(outDir, options, astroConfig, logger)
         await writeLlms(outDir, options, logger)
         await writeSecurity(outDir, options, logger)
         await writeHumans(outDir, options, logger)
@@ -183,11 +197,12 @@ export default function siteFiles(options: SiteFilesOptions = {}): AstroIntegrat
 async function writeRobots(
   outDir: string,
   options: SiteFilesOptions,
-  siteUrl: string | undefined,
+  astroConfig: AstroConfig | undefined,
   logger: AstroLogger,
 ): Promise<void> {
   if (options.robots === false) return
   const robotsOpts: RobotsOptions = typeof options.robots === 'object' ? options.robots : {}
+  const siteUrl = astroConfig?.site ? buildSiteWithBase(String(astroConfig.site), astroConfig.base) : undefined
   await writeFile(join(outDir, 'robots.txt'), renderRobotsTxt(robotsOpts, siteUrl), 'utf-8')
   logger.info('robots.txt generated')
   for (const issue of filterIssues(auditRobots(robotsOpts), options.audit)) {
@@ -302,7 +317,7 @@ async function writeSitemap(
       const result = await sitemapOpts.serialize(entry)
       if (result !== undefined) serialized.push(result)
     }
-    entries = serialized
+    entries = deduplicateEntries(serialized)
   }
 
   // ── i18n hreflang ─────────────────────────────────────────────────────────
@@ -311,8 +326,8 @@ async function writeSitemap(
   }
 
   // ── Audit ─────────────────────────────────────────────────────────────────
-  const issues: AuditIssue[] = auditSitemap(resolved, sitemapOpts, siteUrl)
-  for (const issue of issues) {
+  const issues: AuditIssue[] = auditSitemap(entries, sitemapOpts, siteUrl)
+  for (const issue of filterSitemapIssues(issues, options.audit)) {
     logger[issue.level]?.(issue.message)
   }
 
