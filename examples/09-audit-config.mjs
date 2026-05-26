@@ -13,6 +13,10 @@
  *   security/no-policy
  *   humans/no-team
  *   humans/no-technology
+ *   sitemap/no-site-url
+ *   sitemap/empty-sitemap
+ *   sitemap/duplicate-urls
+ *   sitemap/invalid-priority
  *
  * astro.config.mjs
  */
@@ -47,7 +51,7 @@ export default defineConfig({
       },
 
       security: {
-        contact: 'mailto:security@example.com',
+        contact: 'mailto:info@casoon.de',
         // no expires — normally triggers security/no-expires (suppressed below)
       },
 

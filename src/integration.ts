@@ -5,19 +5,18 @@ import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
 import { renderSitemapIndex, renderSitemapXml } from './sitemap/render.js'
 import { auditSitemap } from './sitemap/audit.js'
 import type {
-  AuditIssue,
   HreflangLink,
   I18nOptions,
   ResolvedSitemapEntry,
   SitemapEntry,
   SitemapOptions,
 } from './sitemap/types.js'
-import type { HumansOptions, RobotsOptions, SiteFilesOptions } from './types.js'
+import type { HumansOptions, LlmsOptions, LlmsSection, RobotsOptions, SiteFilesOptions } from './types.js'
 import { renderRobotsTxt } from './robots.js'
 import { renderLlmsTxt } from './llms.js'
 import { renderSecurityTxt } from './security.js'
 import { renderHumansTxt } from './humans.js'
-import { auditHumans, auditLlms, auditRobots, auditSecurity, filterIssues } from './audit.js'
+import { type AuditIssue, auditHumans, auditLlms, auditRobots, auditSecurity, filterIssues } from './audit.js'
 
 const TODAY = new Date().toISOString().split('T')[0]!
 const PLUGIN = '@casoon/astro-site-files'
@@ -82,20 +81,6 @@ function shouldSkip(
   )) return true
   if (userFilter && fullUrl && !userFilter(fullUrl)) return true
   return false
-}
-
-function filterSitemapIssues(
-  issues: AuditIssue[],
-  options: SiteFilesOptions['audit'],
-): AuditIssue[] {
-  if (options === false) return []
-  if (typeof options === 'object') {
-    if (options.enabled === false) return []
-    if (options.disable?.length) {
-      return issues.filter(issue => !options.disable!.includes(issue.code))
-    }
-  }
-  return issues
 }
 
 function buildI18nLinks(
@@ -220,9 +205,17 @@ async function writeLlms(
     logger.warn('llms: requires a title — provide an object with { title } to generate llms.txt')
     return
   }
-  await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(options.llms), 'utf-8')
+  const llmsOpts: LlmsOptions = options.llms
+  const sourceSections: LlmsSection[] = []
+  for (const source of llmsOpts.sources ?? []) {
+    sourceSections.push(await source())
+  }
+  const resolvedOpts: LlmsOptions = sourceSections.length
+    ? { ...llmsOpts, sections: [...(llmsOpts.sections ?? []), ...sourceSections] }
+    : llmsOpts
+  await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(resolvedOpts), 'utf-8')
   logger.info('llms.txt generated')
-  for (const issue of filterIssues(auditLlms(options.llms), options.audit)) {
+  for (const issue of filterIssues(auditLlms(resolvedOpts), options.audit)) {
     logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
   }
 }
@@ -304,11 +297,16 @@ async function writeSitemap(
     sourceEntries.push(...await source())
   }
 
-  // ── Resolve, deduplicate, serialize ──────────────────────────────────────
+  // ── Resolve ───────────────────────────────────────────────────────────────
   const allRaw: SitemapEntry[] = [...staticEntries, ...sourceEntries]
   const resolved: ResolvedSitemapEntry[] = allRaw.map(e =>
     resolveEntry(e, sitemapOpts, effectiveSiteUrl),
   )
+
+  // ── Audit before dedup so duplicate URLs are detectable ───────────────────
+  const issues: AuditIssue[] = auditSitemap(resolved, sitemapOpts, siteUrl)
+
+  // ── Deduplicate, serialize ────────────────────────────────────────────────
   let entries = deduplicateEntries(resolved)
 
   if (sitemapOpts.serialize) {
@@ -325,10 +323,9 @@ async function writeSitemap(
     entries = buildI18nLinks(entries, sitemapOpts.i18n, effectiveSiteUrl)
   }
 
-  // ── Audit ─────────────────────────────────────────────────────────────────
-  const issues: AuditIssue[] = auditSitemap(entries, sitemapOpts, siteUrl)
-  for (const issue of filterSitemapIssues(issues, options.audit)) {
-    logger[issue.level]?.(issue.message)
+  // ── Log audit issues ──────────────────────────────────────────────────────
+  for (const issue of filterIssues(issues, options.audit)) {
+    logger[issue.level]?.(`[${issue.rule}] ${issue.message} — ${issue.help}`)
   }
 
   // ── Write output ──────────────────────────────────────────────────────────

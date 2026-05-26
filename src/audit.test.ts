@@ -49,6 +49,11 @@ describe('auditLlms', () => {
     })
     expect(issues).toHaveLength(0)
   })
+
+  it('does not warn about missing sections when sources are configured', () => {
+    const issues = auditLlms({ title: 'T', sources: [async () => ({ title: 'S' })] })
+    expect(issues.every(i => i.rule !== 'llms/no-sections')).toBe(true)
+  })
 })
 
 describe('auditSecurity', () => {

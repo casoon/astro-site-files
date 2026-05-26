@@ -17,25 +17,21 @@ export default defineConfig({
   integrations: [
     siteFiles({
       security: {
-        contact: 'mailto:security@example.com',
+        contact: 'mailto:info@casoon.de',
         expires: '2027-01-01T00:00:00.000Z',
-        policy: 'https://example.com/security-policy/',
-        acknowledgments: 'https://example.com/hall-of-fame/',
+        policy: 'https://www.casoon.de/security-policy/',
+        acknowledgments: 'https://www.casoon.de/hall-of-fame/',
         preferredLanguages: ['en', 'de'],
-        hiring: 'https://example.com/jobs/',
+        hiring: 'https://www.casoon.de/jobs/',
       },
 
       humans: {
         team: [
           {
-            name: 'Alice Müller',
+            name: 'Jörn Seidel',
             role: 'Development & Design',
-            location: 'Hamburg, Germany',
-          },
-          {
-            name: 'Bob Schmidt',
-            role: 'Project Management',
-            twitter: '@bobschmidt',
+            location: 'Germany',
+            email: 'info@casoon.de',
           },
         ],
         thanks: [
@@ -43,7 +39,7 @@ export default defineConfig({
           'Our clients for their trust',
         ],
         technology: ['Astro', 'Tailwind CSS', 'TypeScript', 'Cloudflare'],
-        note: 'Built with care in Hamburg.',
+        note: 'Built with care.',
       },
     }),
   ],

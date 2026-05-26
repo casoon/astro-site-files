@@ -78,18 +78,19 @@ export default defineConfig({
       },
 
       security: {
-        contact: 'mailto:security@example.com',
+        contact: 'mailto:info@casoon.de',
         expires: '2027-01-01T00:00:00.000Z',
-        policy: 'https://example.com/security-policy/',
+        policy: 'https://www.casoon.de/security-policy/',
         preferredLanguages: ['en', 'de'],
       },
 
       humans: {
         team: [
           {
-            name: 'Alice Müller',
+            name: 'Jörn Seidel',
             role: 'Development & Design',
-            location: 'Hamburg, Germany',
+            location: 'Germany',
+            email: 'info@casoon.de',
           },
         ],
         technology: ['Astro', 'Tailwind CSS', 'TypeScript', 'Cloudflare'],

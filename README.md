@@ -14,6 +14,11 @@ All files are written to the build output directory when `astro build` runs.
 
 > **Successor package.** This integration replaces [@casoon/astro-crawler-policy](https://github.com/casoon/astro-crawler-policy) (robots.txt + llms.txt) and [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) (sitemap.xml). Both predecessor packages are no longer actively maintained.
 
+## Requirements
+
+- Node.js **≥ 22.12.0** (aligned with Astro 6)
+- Astro **≥ 6.0.0** (peer dependency, optional for programmatic usage)
+
 ## Installation
 
 ```sh
@@ -33,7 +38,7 @@ export default defineConfig({
     siteFiles({
       robots: { disallow: ['/admin'] },
       llms: { title: 'Example', description: 'An example website.' },
-      security: { contact: 'mailto:security@example.com' },
+      security: { contact: 'mailto:info@casoon.de' },
       humans: {
         team: [{ name: 'Alice', role: 'Development' }],
         technology: ['Astro', 'TypeScript']
@@ -123,6 +128,28 @@ siteFiles({
 })
 ```
 
+Use `sources` to generate sections from code — for example from a content collection — instead of maintaining them manually:
+
+```ts
+siteFiles({
+  llms: {
+    title: 'Example',
+    description: 'An example website.',
+    sources: [
+      async () => {
+        const posts = await getCollection('blog')
+        return {
+          title: 'Blog',
+          links: posts.map(p => ({ title: p.data.title, url: `/blog/${p.id}/` })),
+        }
+      },
+    ],
+  },
+})
+```
+
+Sections from `sources` are appended after any manually defined `sections`.
+
 **Option reference:**
 
 | Option | Type | Description |
@@ -130,7 +157,8 @@ siteFiles({
 | `title` | `string` | **Required.** Site or project name |
 | `description` | `string` | Short description rendered as a blockquote |
 | `details` | `string` | Additional plain-text context |
-| `sections` | `Section[]` | Named sections with link lists |
+| `sections` | `LlmsSection[]` | Named sections with link lists (static) |
+| `sources` | `LlmsSource[]` | Async functions that return additional sections |
 
 Each entry in `sections`:
 
@@ -195,9 +223,9 @@ siteFiles({
 | `changefreq` | `ChangefreqRule[]` | Pattern-based changefreq overrides (first match wins) |
 | `serialize` | `(entry) => entry \| undefined` | Per-item transform or filter hook |
 | `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries |
-| `output.mode` | `'single' \| 'index'` | `index` splits into numbered chunks (auto when > `maxUrls`) |
+| `output.mode` | `'single' \| 'index'` | `index` splits into numbered chunks (auto when > `maxUrls`). In index mode the index file is always `sitemap-index.xml` and chunks are `sitemap-1.xml`, `sitemap-2.xml`, … |
 | `output.maxUrls` | `number` | Max URLs per file in index mode — default `50 000` |
-| `output.filename` | `string` | Output filename — default `sitemap.xml` |
+| `output.filename` | `string` | Output filename in single-file mode — default `sitemap.xml`. Ignored in index mode. |
 | `audit.warnOnEmpty` | `boolean` | Warn when sitemap has zero entries — default `true` |
 | `audit.errorOnDuplicates` | `boolean` | Emit error instead of warning for duplicate URLs — default `false` |
 
@@ -216,12 +244,12 @@ Generated at `/.well-known/security.txt` per [RFC 9116](https://www.rfc-editor.o
 ```ts
 siteFiles({
   security: {
-    contact: 'mailto:security@example.com',
-    policy: 'https://example.com/security-policy',
-    acknowledgments: 'https://example.com/hall-of-fame',
+    contact: 'mailto:info@casoon.de',
+    policy: 'https://www.casoon.de/security-policy',
+    acknowledgments: 'https://www.casoon.de/hall-of-fame',
     preferredLanguages: ['en', 'de'],
     expires: '2027-01-01T00:00:00.000Z',
-    hiring: 'https://example.com/jobs'
+    hiring: 'https://www.casoon.de/jobs'
   }
 })
 ```
@@ -244,12 +272,12 @@ siteFiles({
 **Generated output:**
 
 ```
-Contact: mailto:security@example.com
+Contact: mailto:info@casoon.de
 Expires: 2027-01-01T00:00:00.000Z
-Acknowledgments: https://example.com/hall-of-fame
+Acknowledgments: https://www.casoon.de/hall-of-fame
 Preferred-Languages: en, de
-Policy: https://example.com/security-policy
-Hiring: https://example.com/jobs
+Policy: https://www.casoon.de/security-policy
+Hiring: https://www.casoon.de/jobs
 ```
 
 ## humans.txt
@@ -317,12 +345,16 @@ The integration emits build-time hints when configuration looks incomplete or in
 |---|---|---|
 | `robots/legal-pages-blocked` | warn | A legal page (`/privacy`, `/terms`, `/impressum`, …) is in `disallow` |
 | `llms/no-description` | info | `llms` has no `description` |
-| `llms/no-sections` | info | `llms` has no `sections` |
-| `llms/sections-without-links` | info | Sections exist but none have `links` |
+| `llms/no-sections` | info | `llms` has no `sections` or `sources` |
+| `llms/sections-without-links` | info | Sections exist but none have `links` (and no `sources` configured) |
 | `security/no-expires` | warn | `security` has no `expires` date (required by RFC 9116) |
 | `security/no-policy` | info | `security` has no `policy` URL |
 | `humans/no-team` | info | `humans` has no `team` entries |
 | `humans/no-technology` | info | `humans` has no `technology` entries |
+| `sitemap/no-site-url` | warn | No site URL is configured — `<loc>` entries will be relative |
+| `sitemap/empty-sitemap` | warn | Sitemap has no entries after all sources are resolved |
+| `sitemap/duplicate-urls` | warn/error | Duplicate URLs detected before deduplication (last wins) |
+| `sitemap/invalid-priority` | warn | One or more entries have `priority` outside `[0, 1]` |
 
 **Disable all hints:**
 
@@ -388,7 +420,7 @@ import type { AuditOptions, AuditIssue } from '@casoon/astro-site-files'
 
 const robots = renderRobotsTxt({ disallow: ['/admin'] }, 'https://example.com')
 const llms = renderLlmsTxt({ title: 'My Site', description: 'A site.' })
-const security = renderSecurityTxt({ contact: 'mailto:security@example.com' })
+const security = renderSecurityTxt({ contact: 'mailto:info@casoon.de' })
 const humans = renderHumansTxt({ team: [{ name: 'Alice' }], technology: ['Astro'] })
 
 const entries = [{ loc: '/blog/post/' }].map(e => resolveEntry(e, {}, 'https://example.com'))

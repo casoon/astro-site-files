@@ -9,7 +9,6 @@ export type {
   ChangefreqRule,
   I18nOptions,
   Changefreq,
-  AuditIssue,
 } from './sitemap/types.js'
 
 export interface RobotsOptions {
@@ -26,18 +25,26 @@ export interface RobotsOptions {
   }>
 }
 
+export interface LlmsLink {
+  title: string
+  url: string
+  description?: string
+}
+
+export interface LlmsSection {
+  title: string
+  links?: LlmsLink[]
+}
+
+export type LlmsSource = () => LlmsSection | Promise<LlmsSection>
+
 export interface LlmsOptions {
   title: string
   description?: string
   details?: string
-  sections?: Array<{
-    title: string
-    links?: Array<{
-      title: string
-      url: string
-      description?: string
-    }>
-  }>
+  sections?: LlmsSection[]
+  /** Async functions that return additional sections — merged after `sections` */
+  sources?: LlmsSource[]
 }
 
 export interface SecurityOptions {

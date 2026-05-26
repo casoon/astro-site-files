@@ -69,15 +69,18 @@ export function auditLlms(options: LlmsOptions): AuditIssue[] {
     })
   }
 
-  if (!options.sections?.length) {
+  const hasSections = (options.sections?.length ?? 0) > 0
+  const hasSources = (options.sources?.length ?? 0) > 0
+
+  if (!hasSections && !hasSources) {
     issues.push({
       level: 'info',
       rule: 'llms/no-sections',
       message: 'llms.txt has no sections',
       help: 'Add sections with links to key pages — contact, services, team, location, working method. This gives AI models structured access to your most important content.',
     })
-  } else {
-    const totalLinks = options.sections.reduce((sum, s) => sum + (s.links?.length ?? 0), 0)
+  } else if (hasSections && !hasSources) {
+    const totalLinks = options.sections!.reduce((sum, s) => sum + (s.links?.length ?? 0), 0)
     if (totalLinks === 0) {
       issues.push({
         level: 'info',

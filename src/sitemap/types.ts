@@ -67,8 +67,3 @@ export interface SitemapOptions {
   debug?: boolean
 }
 
-export interface AuditIssue {
-  level: 'info' | 'warn' | 'error'
-  code: string
-  message: string
-}

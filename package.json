@@ -1,6 +1,6 @@
 {
   "name": "@casoon/astro-site-files",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "Astro integration that generates robots.txt, llms.txt, sitemap.xml, security.txt, and humans.txt at build time from typed configuration.",
   "type": "module",
   "main": "./dist/index.js",
@@ -30,6 +30,11 @@
     "seo"
   ],
   "license": "MIT",
+  "author": {
+    "name": "Jörn Seidel",
+    "url": "https://www.casoon.de",
+    "email": "info@casoon.de"
+  },
   "homepage": "https://github.com/casoon/astro-site-files#readme",
   "repository": {
     "type": "git",
@@ -39,7 +44,7 @@
     "url": "https://github.com/casoon/astro-site-files/issues"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.12.0"
   },
   "peerDependencies": {
     "astro": ">=6.0.0"

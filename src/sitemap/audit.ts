@@ -1,4 +1,5 @@
-import type { AuditIssue, ResolvedSitemapEntry, SitemapOptions } from './types.js'
+import type { AuditIssue } from '../audit.js'
+import type { ResolvedSitemapEntry, SitemapOptions } from './types.js'
 
 export function auditSitemap(
   entries: ResolvedSitemapEntry[],
@@ -10,20 +11,18 @@ export function auditSitemap(
   if (!siteUrl) {
     issues.push({
       level: 'warn',
-      code: 'NO_SITE_URL',
-      message:
-        '[@casoon/astro-site-files] No site URL configured. Set `site` in astro.config or pass `sitemap.siteUrl`. ' +
-        'Sitemap <loc> entries will be relative paths only.',
+      rule: 'sitemap/no-site-url',
+      message: 'No site URL configured — sitemap <loc> entries will be relative paths only.',
+      help: 'Set `site` in astro.config.ts or pass `sitemap.siteUrl` to produce absolute URLs.',
     })
   }
 
   if (entries.length === 0 && options.audit?.warnOnEmpty !== false) {
     issues.push({
       level: 'warn',
-      code: 'EMPTY_SITEMAP',
-      message:
-        '[@casoon/astro-site-files] Sitemap has no entries. ' +
-        'Check that your build produced pages or that your `sitemap.sources` return data.',
+      rule: 'sitemap/empty-sitemap',
+      message: 'Sitemap has no entries.',
+      help: 'Verify your build produced pages or that `sitemap.sources` returns data.',
     })
   }
 
@@ -39,8 +38,9 @@ export function auditSitemap(
     const suffix = duplicates.size > 3 ? ` … (+${duplicates.size - 3} more)` : ''
     issues.push({
       level: options.audit?.errorOnDuplicates ? 'error' : 'warn',
-      code: 'DUPLICATE_URLS',
-      message: `[@casoon/astro-site-files] ${duplicates.size} duplicate URL(s): ${sample}${suffix}. Duplicates removed (last wins).`,
+      rule: 'sitemap/duplicate-urls',
+      message: `${duplicates.size} duplicate URL(s) found: ${sample}${suffix}. Duplicates are removed (last wins).`,
+      help: 'Check `sitemap.sources` and static routes for overlapping URLs. Add `sitemap/duplicate-urls` to `audit.disable` to suppress.',
     })
   }
 
@@ -48,8 +48,9 @@ export function auditSitemap(
   if (invalid.length > 0) {
     issues.push({
       level: 'warn',
-      code: 'INVALID_PRIORITY',
-      message: `[@casoon/astro-site-files] ${invalid.length} entry/entries have priority outside [0, 1].`,
+      rule: 'sitemap/invalid-priority',
+      message: `${invalid.length} entry/entries have priority outside [0, 1].`,
+      help: 'Sitemap priority must be a number between 0.0 and 1.0 (inclusive). Check your `priority` rules.',
     })
   }
 
