@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { renderRobotsTxt } from './robots.js'
 
 describe('renderRobotsTxt', () => {
-  it('renders default allow-all rule', () => {
+  it('renders default allow-all rule without empty Disallow line', () => {
     const result = renderRobotsTxt({})
     expect(result).toContain('User-agent: *')
-    expect(result).toContain('Disallow:')
+    expect(result).not.toContain('Disallow:')
   })
 
   it('renders disallow paths', () => {

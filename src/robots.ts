@@ -15,8 +15,6 @@ export function renderRobotsTxt(options: RobotsOptions, siteUrl?: string): strin
     for (const path of options.disallow) {
       lines.push(`Disallow: ${path}`)
     }
-  } else {
-    lines.push('Disallow:')
   }
 
   if (options.crawlDelay !== undefined) {
