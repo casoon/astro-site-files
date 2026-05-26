@@ -6,13 +6,14 @@ Astro integration that generates all standard site meta-files from typed configu
 
 - Generates `robots.txt` — crawl rules with per-agent overrides and automatic sitemap reference
 - Generates `llms.txt` — AI model discovery file following the [llmstxt.org](https://llmstxt.org) specification
-- Generates `sitemap.xml` — built-in, enabled by default, with i18n hreflang and sitemap-index support
+- Generates `sitemap.xml` — built-in, enabled by default, with dynamic sources, i18n hreflang and sitemap-index support
+- Generates `rss.xml` — RSS 2.0 feed with CDATA escaping, custom namespaces and per-item hooks
 - Generates `/.well-known/security.txt` — vulnerability disclosure contact per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116)
 - Generates `humans.txt` — team and technology credits per [humanstxt.org](https://humanstxt.org)
 
 All files are written to the build output directory when `astro build` runs.
 
-> **Successor package.** This integration replaces [@casoon/astro-crawler-policy](https://github.com/casoon/astro-crawler-policy) (robots.txt + llms.txt) and [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) (sitemap.xml). Both predecessor packages are no longer actively maintained.
+> **Successor package.** This integration replaces [@casoon/astro-crawler-policy](https://github.com/casoon/astro-crawler-policy) (robots.txt + llms.txt) and [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) (sitemap.xml + rss.xml). Both predecessor packages are no longer actively maintained.
 
 ## Requirements
 
@@ -223,6 +224,7 @@ siteFiles({
 | `changefreq` | `ChangefreqRule[]` | Pattern-based changefreq overrides (first match wins) |
 | `serialize` | `(entry) => entry \| undefined` | Per-item transform or filter hook |
 | `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries |
+| `rss` | `RssConfig` | Generate an RSS 2.0 feed at build time — see [RSS feed](#rss-feed) below |
 | `output.mode` | `'single' \| 'index'` | `index` splits into numbered chunks (auto when > `maxUrls`). In index mode the index file is always `sitemap-index.xml` and chunks are `sitemap-1.xml`, `sitemap-2.xml`, … |
 | `output.maxUrls` | `number` | Max URLs per file in index mode — default `50 000` |
 | `output.filename` | `string` | Output filename in single-file mode — default `sitemap.xml`. Ignored in index mode. |
@@ -236,6 +238,97 @@ siteFiles({
 **Built-in changefreq defaults:** `/` and content paths (`/blog/`, `/artikel/`, etc.) → `weekly`, everything else → `monthly`
 
 **Disable:** `sitemap: false`
+
+## RSS feed
+
+Configure `sitemap.rss` to generate an `rss.xml` at build time alongside the sitemap. `getItems` runs in `astro:build:done` — use filesystem reads rather than `getCollection()`, which is only available in Astro's SSR context.
+
+```ts
+siteFiles({
+  sitemap: {
+    rss: {
+      title: 'My Blog',
+      description: 'Latest articles about TypeScript and Astro.',
+      language: 'en',
+      getItems: async (siteUrl) => {
+        const { readdirSync, readFileSync } = await import('node:fs')
+        const matter = (await import('gray-matter')).default
+        const dir = './src/content/blog'
+        return readdirSync(dir)
+          .filter(f => f.endsWith('.mdx'))
+          .map(file => {
+            const { data } = matter(readFileSync(`${dir}/${file}`, 'utf-8'))
+            if (data.draft) return null
+            return {
+              title: data.title,
+              pubDate: data.date,
+              link: `${siteUrl}/blog/${file.replace(/\.mdx$/, '')}/`,
+              description: data.description,
+            }
+          })
+          .filter(Boolean)
+          .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+      },
+    },
+  },
+})
+```
+
+**`rss` option reference:**
+
+| Option | Type | Description |
+|---|---|---|
+| `title` | `string` | **Required.** Feed title |
+| `description` | `string` | **Required.** Feed description |
+| `getItems` | `(siteUrl: string) => RssItem[]` | **Required.** Returns the feed items |
+| `filename` | `string` | Output filename — default `rss.xml` |
+| `feedUrl` | `string` | Self-link URL — defaults to `{siteUrl}/{filename}` |
+| `language` | `string` | BCP 47 language code, e.g. `'de-DE'` |
+| `copyright` | `string` | Copyright notice |
+| `managingEditor` | `string` | RFC 822 format: `email@domain.com (Name)` |
+| `feedCustomData` | `string` | Raw XML injected inside `<channel>` |
+| `xmlns` | `Record<string, string>` | Additional namespace declarations on `<rss>` |
+
+Each object returned by `getItems`:
+
+| Field | Type | Description |
+|---|---|---|
+| `title` | `string` | **Required.** Item title |
+| `pubDate` | `Date \| string` | **Required.** Publication date |
+| `link` | `string` | **Required.** Full URL or root-relative path |
+| `description` | `string` | Short summary |
+| `author` | `string` | Author name or email |
+| `categories` | `string[]` | Category tags |
+| `customData` | `string` | Raw XML injected inside `<item>` (e.g. for custom namespaced elements) |
+
+### RSS API route (`/rss` sub-path)
+
+For a live feed served at a URL — useful in development or for SSR builds — use `createRssRoute` from the `/rss` sub-path. This helper runs inside Astro's SSR context, so `getCollection()` is available:
+
+```ts
+// src/pages/rss.xml.ts
+import { createRssRoute } from '@casoon/astro-site-files/rss'
+import { getCollection } from 'astro:content'
+
+export const GET = createRssRoute({
+  title: 'My Blog',
+  description: 'Latest posts',
+  language: 'de-DE',
+  getItems: async (siteUrl) => {
+    const posts = await getCollection('blog', ({ data }) => !data.draft)
+    return posts
+      .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+      .map(p => ({
+        title: p.data.title,
+        pubDate: p.data.date,
+        link: `${siteUrl}/blog/${p.id}/`,
+        description: p.data.description,
+      }))
+  },
+})
+```
+
+Both approaches can coexist: build-time `sitemap.rss` for static deploys, API route for development previewing.
 
 ## security.txt
 
@@ -391,6 +484,7 @@ Passing `audit: false` is equivalent to `audit: { enabled: false }`.
 | `robots` | Enabled — generates `robots.txt` with `Disallow:` (allow all) |
 | `llms` | Disabled — requires `{ title }` |
 | `sitemap` | Enabled — built-in sitemap generation from Astro's build output |
+| `sitemap.rss` | Disabled — requires `{ title, description, getItems }` |
 | `security` | Disabled — requires `{ contact }` |
 | `humans` | Disabled — generates when any option is provided |
 | `audit` | Enabled — emits build-time hints for all generated files |
@@ -407,6 +501,7 @@ import {
   renderHumansTxt,
   renderSitemapXml,
   renderSitemapIndex,
+  renderRssFeed,
   resolveEntry,
   deduplicateEntries,
   auditSitemap,
@@ -416,7 +511,7 @@ import {
   auditHumans,
   filterIssues,
 } from '@casoon/astro-site-files'
-import type { AuditOptions, AuditIssue } from '@casoon/astro-site-files'
+import type { AuditOptions, AuditIssue, RssConfig, RssItem } from '@casoon/astro-site-files'
 
 const robots = renderRobotsTxt({ disallow: ['/admin'] }, 'https://example.com')
 const llms = renderLlmsTxt({ title: 'My Site', description: 'A site.' })
@@ -425,6 +520,19 @@ const humans = renderHumansTxt({ team: [{ name: 'Alice' }], technology: ['Astro'
 
 const entries = [{ loc: '/blog/post/' }].map(e => resolveEntry(e, {}, 'https://example.com'))
 const xml = renderSitemapXml(deduplicateEntries(entries))
+
+const rss = renderRssFeed(
+  { title: 'My Blog', description: 'Latest posts', language: 'en' },
+  'https://example.com',
+  [{ title: 'Hello', pubDate: new Date(), link: '/blog/hello/' }],
+)
+```
+
+The `createRssRoute` helper is available from the `/rss` sub-path (see [RSS API route](#rss-api-route-rss-sub-path) above):
+
+```ts
+import { createRssRoute } from '@casoon/astro-site-files/rss'
+import type { CreateRssRouteOptions } from '@casoon/astro-site-files/rss'
 ```
 
 ---
