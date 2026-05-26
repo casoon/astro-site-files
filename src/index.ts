@@ -18,6 +18,8 @@ export type {
   ChangefreqRule,
   I18nOptions,
   Changefreq,
+  RssConfig,
+  RssItem,
 } from './types.js'
 export { renderRobotsTxt } from './robots.js'
 export { renderLlmsTxt } from './llms.js'
@@ -28,3 +30,5 @@ export { resolveEntry, deduplicateEntries } from './sitemap/compile.js'
 export { auditSitemap } from './sitemap/audit.js'
 export { auditRobots, auditLlms, auditSecurity, auditHumans, filterIssues } from './audit.js'
 export type { AuditIssue, AuditOptions } from './audit.js'
+export { createRssRoute, renderRssFeed } from './rss.js'
+export type { CreateRssRouteOptions } from './rss.js'

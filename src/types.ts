@@ -9,6 +9,8 @@ export type {
   ChangefreqRule,
   I18nOptions,
   Changefreq,
+  RssConfig,
+  RssItem,
 } from './sitemap/types.js'
 
 export interface RobotsOptions {

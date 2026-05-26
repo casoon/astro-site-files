@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
 import { renderSitemapIndex, renderSitemapXml } from './sitemap/render.js'
 import { auditSitemap } from './sitemap/audit.js'
+import { renderRssFeed } from './rss.js'
 import type {
   HreflangLink,
   I18nOptions,
@@ -357,5 +358,24 @@ async function writeSitemap(
     const indexXml = renderSitemapIndex(indexEntries)
     await writeFile(join(outDir, 'sitemap-index.xml'), indexXml, 'utf-8')
     logger.info(`sitemap-index.xml generated (${chunks.length} parts, ${entries.length} total URLs)`)
+  }
+
+  if (sitemapOpts.rss) {
+    const rss = sitemapOpts.rss
+    const rssFilename = rss.filename ?? 'rss.xml'
+    const rssSiteUrl = effectiveSiteUrl ?? siteUrl ?? ''
+    const rssItems = await rss.getItems(rssSiteUrl)
+    const rssXml = renderRssFeed({
+      title: rss.title,
+      description: rss.description,
+      feedUrl: rss.feedUrl ?? `${rssSiteUrl}/${rssFilename}`,
+      language: rss.language,
+      copyright: rss.copyright,
+      managingEditor: rss.managingEditor,
+      feedCustomData: rss.feedCustomData,
+      xmlns: rss.xmlns,
+    }, rssSiteUrl, rssItems)
+    await writeFile(join(outDir, rssFilename), rssXml, 'utf-8')
+    logger.info(`${rssFilename} generated (${rssItems.length} items)`)
   }
 }
