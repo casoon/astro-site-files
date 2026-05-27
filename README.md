@@ -231,7 +231,7 @@ siteFiles({
 | `audit.warnOnEmpty` | `boolean` | Warn when sitemap has zero entries — default `true` |
 | `audit.errorOnDuplicates` | `boolean` | Emit error instead of warning for duplicate URLs — default `false` |
 
-**Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `/api/`, `/landing/`, `/drafts/`, `sitemap.xml`, `robots.txt`, `llms.txt`, `rss.xml`.
+**Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `/api/`, `/landing/`, `/drafts/`, `sitemap.xml`, `robots.txt`, `llms.txt`, `rss.xml`, and any page whose HTML starts with `<meta http-equiv="refresh">` (meta-refresh redirect pages).
 
 **Built-in priority defaults:** `/` → 1.0, depth 1 → 0.9, depth 2 → 0.8, depth 3+ → 0.7
 
