@@ -1,4 +1,4 @@
-import { mkdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
@@ -124,12 +124,26 @@ function buildI18nLinks(
   })
 }
 
-async function fileLastmod(outDir: string, urlPath: string): Promise<string | undefined> {
+async function fileInfo(outDir: string, urlPath: string): Promise<{ lastmod?: string; isRedirect: boolean }> {
   const filePath = urlPath === '/' || urlPath.endsWith('/')
     ? join(outDir, urlPath, 'index.html')
     : join(outDir, urlPath)
   const s = await stat(filePath).catch(() => null)
-  return s ? s.mtime.toISOString().split('T')[0] : undefined
+  if (!s) return { isRedirect: false }
+  const lastmod = s.mtime.toISOString().split('T')[0]
+
+  // Read the first 512 bytes to detect meta-refresh redirect pages
+  const fh = await open(filePath, 'r').catch(() => null)
+  if (!fh) return { lastmod, isRedirect: false }
+  try {
+    const buf = Buffer.alloc(512)
+    const { bytesRead } = await fh.read(buf, 0, 512, 0)
+    const head = buf.toString('utf8', 0, bytesRead).toLowerCase()
+    const isRedirect = head.includes('<meta http-equiv="refresh"')
+    return { lastmod, isRedirect }
+  } finally {
+    await fh.close()
+  }
 }
 
 // ── Integration ───────────────────────────────────────────────────────────────
@@ -288,7 +302,8 @@ async function writeSitemap(
     }
     const fullUrl = effectiveSiteUrl ? `${effectiveSiteUrl}${urlPath}` : urlPath
     if (shouldSkip(urlPath, sitemapOpts.exclude ?? [], sitemapOpts.filter, fullUrl)) continue
-    const lastmod = await fileLastmod(outDir, urlPath)
+    const { lastmod, isRedirect } = await fileInfo(outDir, urlPath)
+    if (isRedirect) continue
     staticEntries.push({ loc: fullUrl, lastmod })
   }
 
