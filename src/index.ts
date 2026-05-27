@@ -3,6 +3,11 @@ export { default as siteFiles } from './integration.js'
 export type {
   SiteFilesOptions,
   RobotsOptions,
+  AgentRule,
+  BotAction,
+  BotCategory,
+  RegistryBot,
+  Preset,
   LlmsOptions,
   LlmsSection,
   LlmsSource,
@@ -21,6 +26,7 @@ export type {
   RssConfig,
   RssItem,
 } from './types.js'
+export { defaultRegistry, REGISTRY_VERSION } from './registry.js'
 export { renderRobotsTxt } from './robots.js'
 export { renderLlmsTxt } from './llms.js'
 export { renderSecurityTxt } from './security.js'

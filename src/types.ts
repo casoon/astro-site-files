@@ -13,18 +13,60 @@ export type {
   RssItem,
 } from './sitemap/types.js'
 
+export interface AgentRule {
+  userAgent: string | string[]
+  allow?: string[]
+  disallow?: string[]
+  crawlDelay?: number
+}
+
+export type BotAction = 'allow' | 'disallow' | 'inherit'
+
+export type BotCategory =
+  | 'search'
+  | 'ai-search'
+  | 'ai-input'
+  | 'ai-training'
+  | 'unknown-ai'
+  | 'seo-scanner'
+  | 'archive'
+
+export interface RegistryBot {
+  id: string
+  provider: string
+  userAgents: string[]
+  categories: BotCategory[]
+  verified?: boolean
+  defaultAction?: BotAction
+}
+
+export type Preset = 'seoOnly' | 'citationFriendly' | 'openToAi' | 'blockTraining' | 'lockdown'
+
 export interface RobotsOptions {
   disallow?: string[]
   allow?: string[]
   /** true = auto-derive from site URL, string = explicit URL, false = omit */
   sitemap?: boolean | string
   crawlDelay?: number
-  agents?: Array<{
-    userAgent: string | string[]
-    allow?: string[]
-    disallow?: string[]
-    crawlDelay?: number
-  }>
+  /**
+   * Named preset — sets group defaults and per-bot rules for known crawlers.
+   * Individual `bots` and `groups` options override the preset.
+   */
+  preset?: Preset
+  /** Per-bot action overrides — keyed by bot id, take precedence over groups and preset */
+  bots?: Record<string, BotAction>
+  /** Group-level controls — override the preset defaults for a whole category */
+  groups?: {
+    searchEngines?: BotAction
+    verifiedAi?: BotAction
+    unknownAi?: BotAction
+    seoScanners?: BotAction
+    archives?: BotAction
+  }
+  /** Additional bots to merge into the built-in registry */
+  extraBots?: RegistryBot[]
+  /** Explicit per-agent rule blocks — appended after registry-derived rules */
+  agents?: AgentRule[]
 }
 
 export interface LlmsLink {

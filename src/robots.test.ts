@@ -73,3 +73,59 @@ describe('renderRobotsTxt', () => {
     expect(renderRobotsTxt({}).endsWith('\n')).toBe(true)
   })
 })
+
+describe('renderRobotsTxt with presets', () => {
+  it('seoOnly blocks AI bots and allows search engines', () => {
+    const result = renderRobotsTxt({ preset: 'seoOnly' })
+    expect(result).toContain('User-agent: GPTBot')
+    expect(result).toContain('Disallow: /')
+    expect(result).toContain('User-agent: Googlebot')
+    expect(result).toContain('Allow: /')
+    expect(result).toContain('User-agent: ia_archiver')
+  })
+
+  it('blockTraining disallows training bots but allows search', () => {
+    const result = renderRobotsTxt({ preset: 'blockTraining' })
+    expect(result).toContain('User-agent: GPTBot')
+    expect(result).toContain('Disallow: /')
+    expect(result).toContain('User-agent: Googlebot')
+    expect(result).toContain('Allow: /')
+  })
+
+  it('openToAi emits Allow for all known bots', () => {
+    const result = renderRobotsTxt({ preset: 'openToAi' })
+    expect(result).not.toMatch(/User-agent: GPTBot[\s\S]*?Disallow/)
+    expect(result).toContain('User-agent: Googlebot')
+    expect(result).toContain('Allow: /')
+  })
+
+  it('per-bot override takes precedence over preset', () => {
+    const result = renderRobotsTxt({ preset: 'openToAi', bots: { GPTBot: 'disallow' } })
+    const gptBotBlock = result.split('\n\n').find(b => b.includes('User-agent: GPTBot'))
+    expect(gptBotBlock).toContain('Disallow: /')
+  })
+
+  it('group override takes precedence over preset', () => {
+    const result = renderRobotsTxt({ preset: 'openToAi', groups: { searchEngines: 'disallow' } })
+    const googlebotBlock = result.split('\n\n').find(b => b.includes('User-agent: Googlebot'))
+    expect(googlebotBlock).toContain('Disallow: /')
+  })
+
+  it('extraBots are included in compilation', () => {
+    const result = renderRobotsTxt({
+      preset: 'seoOnly',
+      extraBots: [{ id: 'CustomBot', provider: 'Test', userAgents: ['CustomBot'], categories: ['ai-training'], verified: true }],
+    })
+    expect(result).toContain('User-agent: CustomBot')
+    expect(result).toContain('Disallow: /')
+  })
+
+  it('agents are appended after registry rules', () => {
+    const result = renderRobotsTxt({
+      preset: 'seoOnly',
+      agents: [{ userAgent: 'ManualBot', disallow: ['/secret/'] }],
+    })
+    expect(result).toContain('User-agent: ManualBot')
+    expect(result).toContain('Disallow: /secret/')
+  })
+})

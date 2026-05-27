@@ -37,7 +37,10 @@ export default defineConfig({
   site: 'https://example.com',
   integrations: [
     siteFiles({
-      robots: { disallow: ['/admin'] },
+      robots: {
+        preset: 'seoOnly',      // blocks AI training and archives; search engines stay allowed
+        disallow: ['/admin'],   // additional path rules on top of the preset
+      },
       llms: { title: 'Example', description: 'An example website.' },
       security: { contact: 'mailto:info@casoon.de' },
       humans: {
@@ -53,18 +56,28 @@ export default defineConfig({
 
 ## robots.txt
 
+The recommended approach is to start with a preset and add path rules on top:
+
+```ts
+siteFiles({
+  robots: {
+    preset: 'seoOnly',           // blocks AI training, archiving; search engines allowed
+    disallow: ['/admin'],        // additional paths for User-agent: *
+  }
+})
+```
+
+For fine-grained control without a preset:
+
 ```ts
 siteFiles({
   robots: {
     disallow: ['/admin', '/private/'],
     allow: ['/admin/public/'],
     crawlDelay: 2,
-    sitemap: true,           // auto-derive from astro.config site URL (default)
+    sitemap: true,               // auto-derive from astro.config site URL (default)
     agents: [
-      {
-        userAgent: 'Googlebot',
-        crawlDelay: 1
-      }
+      { userAgent: 'Googlebot', crawlDelay: 1 }
     ]
   }
 })
@@ -78,7 +91,23 @@ siteFiles({
 | `allow` | `string[]` | `[]` | Paths to explicitly allow for `User-agent: *` |
 | `crawlDelay` | `number` | — | Crawl-delay for `User-agent: *` |
 | `sitemap` | `boolean \| string` | `true` | `true` = derive URL from `astro.config.site`, `string` = explicit URL, `false` = omit |
-| `agents` | `AgentRule[]` | `[]` | Additional per-agent rule blocks |
+| `preset` | `Preset` | — | Named preset — see [Presets](#presets) below |
+| `bots` | `Record<string, BotAction>` | `{}` | Per-bot overrides — keyed by bot id, take precedence over groups and preset |
+| `groups` | `Groups` | `{}` | Group-level action controls — see sub-table below |
+| `extraBots` | `RegistryBot[]` | `[]` | Additional bots to merge into the built-in registry |
+| `agents` | `AgentRule[]` | `[]` | Explicit per-agent rule blocks — appended after registry-derived rules |
+
+`BotAction` values: `'allow'` (emit `Allow: /`), `'disallow'` (emit `Disallow: /`), `'inherit'` (no rule emitted; `User-agent: *` applies).
+
+`Groups` fields:
+
+| Group key | Covers |
+|---|---|
+| `searchEngines` | Googlebot, Bingbot, DuckDuckBot |
+| `verifiedAi` | Verified AI bots — OpenAI, Anthropic, Google, Perplexity, You.com, Amazon, Apple, Meta, ByteDance |
+| `unknownAi` | Unverified or uncategorized scrapers (Diffbot, Omgilibot) |
+| `seoScanners` | SEO analytics tools — AhrefsBot, SemrushBot, MJ12bot, DotBot |
+| `archives` | Web archiving bots — ia_archiver, archive.org_bot |
 
 Each entry in `agents`:
 
@@ -105,6 +134,161 @@ Crawl-delay: 1
 
 Sitemap: https://example.com/sitemap.xml
 ```
+
+### Presets
+
+A preset configures group defaults and known-bot rules in one step. Individual `bots` and `groups` options override the preset.
+
+```ts
+siteFiles({
+  robots: { preset: 'seoOnly' }
+})
+```
+
+| Preset | searchEngines | verifiedAi | unknownAi | seoScanners | archives | Notes |
+|---|---|---|---|---|---|---|
+| `seoOnly` | allow | disallow | disallow | inherit | disallow | All AI training and archiving blocked; search engines stay |
+| `citationFriendly` | allow | allow | disallow | inherit | inherit | AI may read and cite; training crawlers overridden via `bots` |
+| `openToAi` | allow | allow | allow | inherit | allow | Everything allowed |
+| `blockTraining` | allow | allow | disallow | inherit | disallow | AI input/search allowed; training bots overridden via `bots` |
+| `lockdown` | disallow | disallow | disallow | disallow | disallow | Everything blocked |
+
+`inherit` means no rule is emitted for that group — `User-agent: *` applies. `citationFriendly` and `blockTraining` additionally override specific training bots via `bots` regardless of the `verifiedAi` group setting.
+
+**Group overrides** let you adjust one category without changing the preset for others:
+
+```ts
+siteFiles({
+  robots: {
+    preset: 'seoOnly',
+    groups: { seoScanners: 'disallow' }  // also block SEO scanners
+  }
+})
+```
+
+Available groups: `searchEngines`, `verifiedAi`, `unknownAi`, `seoScanners`, `archives`.
+
+**Per-bot overrides** take the highest precedence:
+
+```ts
+siteFiles({
+  robots: {
+    preset: 'blockTraining',
+    bots: { PerplexityBot: 'disallow' }  // also block AI search
+  }
+})
+```
+
+**Adding custom bots:**
+
+```ts
+siteFiles({
+  robots: {
+    preset: 'seoOnly',
+    extraBots: [
+      { id: 'MyBot', provider: 'Example', userAgents: ['MyBot/1.0'], categories: ['ai-training'], verified: false }
+    ]
+  }
+})
+```
+
+### Blocking AI crawlers and web archives
+
+`robots.txt` is voluntary — compliant bots respect it, aggressive scrapers often do not. For most sites the pragmatic approach is a layered "soft block": signal your preferences clearly while keeping search engines working normally.
+
+**Known bots to consider blocking**
+
+| User-agent | Origin |
+|---|---|
+| `ia_archiver` | Internet Archive / Wayback Machine |
+| `archive.org_bot` | Internet Archive (secondary agent) |
+| `GPTBot` | OpenAI training crawler |
+| `ChatGPT-User` | OpenAI — when ChatGPT fetches URLs on behalf of a user |
+| `ClaudeBot` | Anthropic |
+| `Claude-Web` | Anthropic |
+| `anthropic-ai` | Anthropic |
+| `Google-Extended` | Google — Gemini / AI Overviews training |
+| `CCBot` | Common Crawl — the base dataset behind many models |
+| `PerplexityBot` | Perplexity AI |
+| `YouBot` | You.com AI search |
+| `Amazonbot` | Amazon — Alexa / Rufus training |
+| `Applebot-Extended` | Apple AI features |
+| `Bytespider` | ByteDance / TikTok ecosystem |
+| `Diffbot` | Automated data extraction (unverified) |
+| `Omgilibot` | Social media data aggregator, used in training sets (unverified) |
+| `AhrefsBot` | Ahrefs SEO scanner |
+| `SemrushBot` | Semrush SEO scanner |
+| `MJ12bot` | Majestic SEO scanner |
+| `DotBot` | OpenLinkProfiler SEO scanner |
+
+**Important: block CCBot.** Many models are not trained directly from your site but via datasets derived from Common Crawl. Blocking only `GPTBot` while leaving `CCBot` open still lets your content reach training pipelines indirectly.
+
+**Variant 1 — Pragmatic / SEO-safe**
+
+Good for company sites, blogs, agencies. Normal search engines keep working; AI training and archiving are restricted.
+
+```ts
+siteFiles({
+  robots: { preset: 'seoOnly' }
+})
+```
+
+**Variant 2 — Content-focused / block training**
+
+For publishers, premium content, or media sites. AI may read and cite content; training crawlers and archives are blocked.
+
+```ts
+siteFiles({
+  robots: { preset: 'blockTraining' }
+})
+```
+
+**Variant 3 — Maximum restriction**
+
+Block everything including SEO scanners. Use with caution — this also prevents you from using SEO tools on your own site.
+
+```ts
+siteFiles({
+  robots: {
+    preset: 'seoOnly',
+    groups: { seoScanners: 'disallow' }
+  }
+})
+```
+
+> **Note on SEO scanners:** Blocking AhrefsBot, SemrushBot, and similar tools prevents competitors from analysing your backlink profile or content, but also prevents you from using those tools on your own site. Evaluate the trade-off before adding them.
+
+**Meta tag and HTTP header**
+
+```html
+<meta name="robots" content="noarchive">
+```
+
+```
+X-Robots-Tag: noarchive
+```
+
+This helps against **search engine caches and snapshots** (e.g. Google Cache). It does not protect against active scrapers, training data dumps, or content already copied.
+
+**What robots.txt cannot do**
+
+Since 2025–2026, many AI scrapers no longer identify themselves as bots. They use residential IPs, headless browsers with standard headers, and distributed request patterns that are indistinguishable from normal traffic. `robots.txt` cannot stop them.
+
+Effective countermeasures require infrastructure:
+
+- Rate limiting
+- Bot detection (e.g. Cloudflare Bot Fight Mode)
+- JS challenges for suspicious traffic
+- IP reputation filtering and login walls
+
+If you use Cloudflare, a WAF rule can block unverified bots while allowing legitimate search crawlers:
+
+```
+(cf.client.bot and not cf.verified_bot_category in {"Search Engine Crawler"})
+→ Challenge / JS Challenge / Block
+```
+
+`robots.txt` is a declaration of intent, not an enforcement mechanism.
 
 ## llms.txt
 
@@ -510,10 +694,31 @@ import {
   auditSecurity,
   auditHumans,
   filterIssues,
+  defaultRegistry,
+  REGISTRY_VERSION,
 } from '@casoon/astro-site-files'
-import type { AuditOptions, AuditIssue, RssConfig, RssItem } from '@casoon/astro-site-files'
+import type {
+  AuditOptions,
+  AuditIssue,
+  RssConfig,
+  RssItem,
+  BotAction,
+  BotCategory,
+  RegistryBot,
+  Preset,
+} from '@casoon/astro-site-files'
 
-const robots = renderRobotsTxt({ disallow: ['/admin'] }, 'https://example.com')
+// With preset
+const robots = renderRobotsTxt({ preset: 'seoOnly' }, 'https://example.com')
+
+// With manual overrides on top of a preset
+const robots2 = renderRobotsTxt(
+  { preset: 'blockTraining', bots: { PerplexityBot: 'disallow' }, disallow: ['/admin'] },
+  'https://example.com',
+)
+
+// Without preset (manual)
+const robots3 = renderRobotsTxt({ disallow: ['/admin'] }, 'https://example.com')
 const llms = renderLlmsTxt({ title: 'My Site', description: 'A site.' })
 const security = renderSecurityTxt({ contact: 'mailto:info@casoon.de' })
 const humans = renderHumansTxt({ team: [{ name: 'Alice' }], technology: ['Astro'] })
@@ -527,6 +732,8 @@ const rss = renderRssFeed(
   [{ title: 'Hello', pubDate: new Date(), link: '/blog/hello/' }],
 )
 ```
+
+`defaultRegistry` exposes the full built-in bot list. `REGISTRY_VERSION` is an ISO date string of the last registry update — useful for debugging or displaying in tooling.
 
 The `createRssRoute` helper is available from the `/rss` sub-path (see [RSS API route](#rss-api-route-rss-sub-path) above):
 
