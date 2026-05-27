@@ -166,8 +166,6 @@ siteFiles({
 })
 ```
 
-Available groups: `searchEngines`, `verifiedAi`, `unknownAi`, `seoScanners`, `archives`.
-
 **Per-bot overrides** take the highest precedence:
 
 ```ts
@@ -214,6 +212,8 @@ siteFiles({
 | `Amazonbot` | Amazon — Alexa / Rufus training |
 | `Applebot-Extended` | Apple AI features |
 | `Bytespider` | ByteDance / TikTok ecosystem |
+| `OAI-SearchBot` | OpenAI — search and browsing |
+| `meta-externalagent` | Meta AI |
 | `Diffbot` | Automated data extraction (unverified) |
 | `Omgilibot` | Social media data aggregator, used in training sets (unverified) |
 | `AhrefsBot` | Ahrefs SEO scanner |
@@ -665,7 +665,7 @@ Passing `audit: false` is equivalent to `audit: { enabled: false }`.
 
 | Option | Default behavior |
 |---|---|
-| `robots` | Enabled — generates `robots.txt` with `Disallow:` (allow all) |
+| `robots` | Enabled — generates `robots.txt` that allows all crawlers by default |
 | `llms` | Disabled — requires `{ title }` |
 | `sitemap` | Enabled — built-in sitemap generation from Astro's build output |
 | `sitemap.rss` | Disabled — requires `{ title, description, getItems }` |
