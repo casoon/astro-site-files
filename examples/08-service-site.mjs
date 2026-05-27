@@ -2,7 +2,7 @@
  * 08 — Full config for a service / agency site
  *
  * A realistic setup for a regional service business:
- *   - robots.txt blocks internal pages, slows down SEO scrapers
+ *   - robots.txt uses seoOnly preset + blocks internal paths
  *   - llms.txt with full service and contact structure
  *   - sitemap excludes legal/internal pages, custom priority for key services
  *   - security.txt with contact, expiry and disclosure policy
@@ -20,9 +20,10 @@ export default defineConfig({
   integrations: [
     siteFiles({
       robots: {
-        disallow: ['/admin/', '/preview/', '/demo/'],
+        preset: 'seoOnly',                              // blocks AI training + archives
+        disallow: ['/admin/', '/preview/', '/demo/'],   // also hide internal paths
         agents: [
-          { userAgent: ['AhrefsBot', 'SemrushBot'], crawlDelay: 10 },
+          { userAgent: ['AhrefsBot', 'SemrushBot'], crawlDelay: 10 },  // slow down, don't block
         ],
       },
 

@@ -1,11 +1,18 @@
 /**
- * 02 — robots.txt with per-agent rules
+ * 02 — robots.txt
  *
- * The default User-agent: * block allows everything.
- * Use `disallow` for paths that should not be indexed.
- * Use `agents` for per-bot rules on top of the wildcard block.
+ * The recommended approach is to start with a preset. Presets configure
+ * group defaults and known-bot rules in one step; `disallow` and `agents`
+ * add path rules and per-agent settings on top.
  *
- * Tip: do not disallow legal pages (/privacy, /terms, /imprint) —
+ * Presets:
+ *   seoOnly         — blocks AI training, archiving; search engines allowed
+ *   citationFriendly — AI may read/cite content; training crawlers blocked
+ *   openToAi        — everything allowed
+ *   blockTraining   — AI input/search allowed; training bots and archives blocked
+ *   lockdown        — everything blocked
+ *
+ * Tip: never disallow legal pages (/privacy, /terms, /imprint) —
  * search engines cannot read noindex tags on blocked pages.
  *
  * astro.config.mjs
@@ -13,22 +20,84 @@
 import siteFiles from '@casoon/astro-site-files'
 import { defineConfig } from 'astro/config'
 
+// ── A) Preset only ────────────────────────────────────────────────────────────
+//
+// Blocks all AI training crawlers and web archives.
+// Search engines (Google, Bing, DuckDuckGo) stay allowed.
+
+export const configA = defineConfig({
+  site: 'https://example.com',
+  integrations: [
+    siteFiles({
+      robots: {
+        preset: 'seoOnly',
+      },
+    }),
+  ],
+})
+
+// ── B) Preset + custom path rules ────────────────────────────────────────────
+//
+// `disallow` and `allow` apply to User-agent: * on top of the preset.
+
+export const configB = defineConfig({
+  site: 'https://example.com',
+  integrations: [
+    siteFiles({
+      robots: {
+        preset: 'seoOnly',
+        disallow: ['/admin/', '/preview/', '/internal/'],
+        allow: ['/admin/public/'],
+      },
+    }),
+  ],
+})
+
+// ── C) Preset + group override ────────────────────────────────────────────────
+//
+// Also block SEO scanners (AhrefsBot, SemrushBot, etc.).
+// Note: this prevents competitors from analysing your backlinks, but also
+// prevents you from using those tools on your own site.
+
+export const configC = defineConfig({
+  site: 'https://example.com',
+  integrations: [
+    siteFiles({
+      robots: {
+        preset: 'seoOnly',
+        groups: { seoScanners: 'disallow' },
+      },
+    }),
+  ],
+})
+
+// ── D) Preset + per-bot override ─────────────────────────────────────────────
+//
+// Fine-tune individual bots on top of a preset.
+
+export const configD = defineConfig({
+  site: 'https://example.com',
+  integrations: [
+    siteFiles({
+      robots: {
+        preset: 'blockTraining',
+        bots: { PerplexityBot: 'disallow' },  // also block AI search
+      },
+    }),
+  ],
+})
+
+// ── E) Manual rules (no preset) ──────────────────────────────────────────────
+//
+// Use `agents` for per-bot rules when you need full manual control.
+
 export default defineConfig({
   site: 'https://example.com',
   integrations: [
     siteFiles({
       robots: {
-        disallow: [
-          '/admin/',
-          '/preview/',
-          '/internal/',
-        ],
-        allow: [
-          '/admin/public/',  // selectively re-open a path under a blocked prefix
-        ],
+        disallow: ['/admin/', '/preview/'],
         crawlDelay: 2,
-        sitemap: true,       // auto-derive from astro.config.site (default)
-
         agents: [
           {
             // Slow down aggressive crawlers without blocking them
@@ -36,7 +105,6 @@ export default defineConfig({
             crawlDelay: 10,
           },
           {
-            // Block a specific bot entirely
             userAgent: 'BadBot',
             disallow: ['/'],
           },
