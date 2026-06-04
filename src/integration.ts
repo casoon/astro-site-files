@@ -1,4 +1,4 @@
-import { mkdir, open, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
@@ -145,6 +145,28 @@ async function fileInfo(outDir: string, urlPath: string): Promise<{ lastmod?: st
     await fh.close()
   }
 }
+
+async function readHtmlMetadata(filePath: string): Promise<{ changefreq?: string; priority?: number }> {
+  const content = await readFile(filePath, 'utf-8').catch(() => '')
+  if (!content) return {}
+
+  // Extract JSON-LD script and search for custom changefreq/priority data-attributes
+  const jsonLdMatch = /<script\s+[^>]*type=["']application\/ld\+json["']([^>]*?)>/i.exec(content)
+  if (!jsonLdMatch) return {}
+
+  const attrs = jsonLdMatch[1]
+  const changefreqMatch = /data-sitemap-changefreq=["'](.*?)["']/i.exec(attrs)
+  const priorityMatch = /data-sitemap-priority=["'](.*?)["']/i.exec(attrs)
+
+  const res: { changefreq?: string; priority?: number } = {}
+  if (changefreqMatch) res.changefreq = changefreqMatch[1]
+  if (priorityMatch) {
+    const val = parseFloat(priorityMatch[1])
+    if (!isNaN(val)) res.priority = val
+  }
+  return res;
+}
+
 
 // ── Integration ───────────────────────────────────────────────────────────────
 
@@ -304,7 +326,19 @@ async function writeSitemap(
     if (shouldSkip(urlPath, sitemapOpts.exclude ?? [], sitemapOpts.filter, fullUrl)) continue
     const { lastmod, isRedirect } = await fileInfo(outDir, urlPath)
     if (isRedirect) continue
-    staticEntries.push({ loc: fullUrl, lastmod })
+    
+    // Extract optional changefreq/priority set dynamically by the pages
+    const filePath = urlPath === '/' || urlPath.endsWith('/')
+      ? join(outDir, urlPath, 'index.html')
+      : join(outDir, urlPath)
+    const htmlMeta = await readHtmlMetadata(filePath)
+
+    staticEntries.push({
+      loc: fullUrl,
+      lastmod,
+      ...(htmlMeta.changefreq ? { changefreq: htmlMeta.changefreq as any } : {}),
+      ...(htmlMeta.priority !== undefined ? { priority: htmlMeta.priority } : {}),
+    })
   }
 
   // ── Collect dynamic sources ───────────────────────────────────────────────
