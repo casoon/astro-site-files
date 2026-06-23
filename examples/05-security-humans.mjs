@@ -1,5 +1,5 @@
 /**
- * 04 — security.txt and humans.txt
+ * 05 — security.txt and humans.txt
  *
  * security.txt is written to /.well-known/security.txt per RFC 9116.
  * `contact` and `expires` are required by the specification.

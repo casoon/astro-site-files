@@ -1,5 +1,5 @@
 /**
- * 03 — llms.txt with structured sections
+ * 04 — llms.txt with structured sections
  *
  * llms.txt follows the llmstxt.org specification.
  * It gives AI models a structured overview of your site:

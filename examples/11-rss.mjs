@@ -1,5 +1,5 @@
 /**
- * 10 — RSS feed generation
+ * 11 — RSS feed generation
  *
  * Two approaches:
  *

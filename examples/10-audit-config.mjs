@@ -1,5 +1,5 @@
 /**
- * 09 — Audit configuration
+ * 10 — Audit configuration
  *
  * Build-time audit hints warn about missing fields and misconfigurations.
  * This example shows how to silence all hints or suppress individual rules.

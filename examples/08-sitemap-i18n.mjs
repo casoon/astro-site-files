@@ -1,5 +1,5 @@
 /**
- * 07 — Sitemap with i18n hreflang
+ * 08 — Sitemap with i18n hreflang
  *
  * When `i18n` is configured, entries are grouped by their canonical path
  * (path without locale prefix). Each page gets <xhtml:link rel="alternate">

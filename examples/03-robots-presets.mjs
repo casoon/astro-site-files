@@ -1,7 +1,7 @@
 /**
- * 11 — robots.txt presets: full reference
+ * 03 — robots.txt presets: full reference
  *
- * Presets configure group defaults and per-bot rules for all 28 known crawlers
+ * Presets configure group defaults and per-bot rules for all 25 known crawlers
  * in the built-in registry. Per-bot `bots` and group-level `groups` options
  * override the preset; explicit `agents` blocks are appended after.
  *
@@ -10,7 +10,7 @@
  *
  * Groups:
  *   searchEngines — Googlebot, Bingbot, DuckDuckBot
- *   verifiedAi    — OpenAI, Anthropic, Google, Perplexity, You.com, Amazon, Apple, Meta, ByteDance
+ *   verifiedAi    — OpenAI, Anthropic, Google, Common Crawl, Perplexity, You.com, Amazon, Apple, Meta, ByteDance
  *   unknownAi     — unverified scrapers (Diffbot, Omgilibot)
  *   seoScanners   — AhrefsBot, SemrushBot, MJ12bot, DotBot
  *   archives      — ia_archiver, archive.org_bot

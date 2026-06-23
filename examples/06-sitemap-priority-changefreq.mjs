@@ -1,5 +1,5 @@
 /**
- * 05 — Sitemap with priority, changefreq and exclude rules
+ * 06 — Sitemap with priority, changefreq and exclude rules
  *
  * Rules are evaluated in order — the first match wins.
  * Patterns can be:

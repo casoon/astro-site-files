@@ -1,5 +1,5 @@
 /**
- * 06 — Sitemap with dynamic sources (content collections)
+ * 07 — Sitemap with dynamic sources (content collections)
  *
  * Static pages are discovered automatically from Astro's build output.
  * Use `sources` to inject additional URLs — e.g. from content collections,

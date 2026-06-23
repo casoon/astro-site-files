@@ -1,5 +1,5 @@
 /**
- * 08 — Full config for a service / agency site
+ * 09 — Full config for a service / agency site
  *
  * A realistic setup for a regional service business:
  *   - robots.txt uses seoOnly preset + blocks internal paths

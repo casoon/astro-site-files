@@ -6,6 +6,7 @@ import { renderSitemapIndex, renderSitemapXml } from './sitemap/render.js'
 import { auditSitemap } from './sitemap/audit.js'
 import { renderRssFeed } from './rss.js'
 import type {
+  Changefreq,
   HreflangLink,
   I18nOptions,
   ResolvedSitemapEntry,
@@ -146,25 +147,31 @@ async function fileInfo(outDir: string, urlPath: string): Promise<{ lastmod?: st
   }
 }
 
-async function readHtmlMetadata(filePath: string): Promise<{ changefreq?: string; priority?: number }> {
+const VALID_CHANGEFREQS = new Set<string>(['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'])
+
+async function readHtmlMetadata(filePath: string): Promise<{ changefreq?: Changefreq; priority?: number }> {
   const content = await readFile(filePath, 'utf-8').catch(() => '')
   if (!content) return {}
 
-  // Extract JSON-LD script and search for custom changefreq/priority data-attributes
-  const jsonLdMatch = /<script\s+[^>]*type=["']application\/ld\+json["']([^>]*?)>/i.exec(content)
+  // Capture the full opening tag of a JSON-LD script to find data-sitemap-* attributes
+  // regardless of attribute order
+  const jsonLdMatch = /<script\s+([^>]*type=["']application\/ld\+json["'][^>]*)>/i.exec(content)
   if (!jsonLdMatch) return {}
 
-  const attrs = jsonLdMatch[1]
+  const attrs = jsonLdMatch[1]!
   const changefreqMatch = /data-sitemap-changefreq=["'](.*?)["']/i.exec(attrs)
   const priorityMatch = /data-sitemap-priority=["'](.*?)["']/i.exec(attrs)
 
-  const res: { changefreq?: string; priority?: number } = {}
-  if (changefreqMatch) res.changefreq = changefreqMatch[1]
+  const res: { changefreq?: Changefreq; priority?: number } = {}
+  if (changefreqMatch) {
+    const val = changefreqMatch[1]!.toLowerCase()
+    if (VALID_CHANGEFREQS.has(val)) res.changefreq = val as Changefreq
+  }
   if (priorityMatch) {
-    const val = parseFloat(priorityMatch[1])
+    const val = parseFloat(priorityMatch[1]!)
     if (!isNaN(val)) res.priority = val
   }
-  return res;
+  return res
 }
 
 
@@ -318,7 +325,7 @@ async function collectStaticEntries(
     entries.push({
       loc: fullUrl,
       lastmod,
-      ...(htmlMeta.changefreq ? { changefreq: htmlMeta.changefreq as any } : {}),
+      ...(htmlMeta.changefreq ? { changefreq: htmlMeta.changefreq } : {}),
       ...(htmlMeta.priority !== undefined ? { priority: htmlMeta.priority } : {}),
     })
   }
