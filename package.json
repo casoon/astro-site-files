@@ -50,9 +50,6 @@
   "engines": {
     "node": ">=22.12.0"
   },
-  "peerDependencies": {
-    "astro": ">=6.0.0 <8.0.0"
-  },
   "peerDependenciesMeta": {
     "astro": {
       "optional": true
@@ -61,7 +58,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {},
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
