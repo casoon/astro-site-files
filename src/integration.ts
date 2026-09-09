@@ -23,6 +23,10 @@ import { type AuditIssue, auditHumans, auditLlms, auditRobots, auditSecurity, fi
 const TODAY = new Date().toISOString().split('T')[0]!
 const PLUGIN = '@casoon/astro-site-files'
 
+// Only structurally unambiguous paths belong here: generated site files, error
+// pages and Astro internals. Path segments that merely *look* non-content
+// (`/api/`, `/landing/`, `/drafts/`) are left to the user's `exclude`/`filter`,
+// because a docs or marketing site can serve real pages under them.
 const BUILT_IN_SKIP: RegExp[] = [
   /^\/sitemap(-index)?\.xml$/,
   /^\/robots\.txt$/,
@@ -32,9 +36,6 @@ const BUILT_IN_SKIP: RegExp[] = [
   /\/404\b/,
   /\/500\b/,
   /^\/_/,
-  /\/api\//,
-  /\/landing\//,
-  /\/drafts\//,
 ]
 
 // ── Astro hook interfaces ─────────────────────────────────────────────────────
@@ -69,20 +70,22 @@ function buildSiteWithBase(siteUrl: string | undefined, base: string | undefined
   return (siteUrl?.replace(/\/$/, '') ?? '') + normalizedBase
 }
 
-function shouldSkip(
+type SkipReason = 'built-in' | 'exclude' | 'filter'
+
+function skipReason(
   urlPath: string,
   userExcludes: (string | RegExp)[],
   userFilter?: (url: string) => boolean,
   fullUrl?: string,
-): boolean {
-  if (BUILT_IN_SKIP.some(p => p.test(urlPath))) return true
+): SkipReason | undefined {
+  if (BUILT_IN_SKIP.some(p => p.test(urlPath))) return 'built-in'
   if (userExcludes.some(p =>
     typeof p === 'string'
       ? urlPath === p || urlPath.startsWith(p)
       : p.test(urlPath),
-  )) return true
-  if (userFilter && fullUrl && !userFilter(fullUrl)) return true
-  return false
+  )) return 'exclude'
+  if (userFilter && fullUrl && !userFilter(fullUrl)) return 'filter'
+  return undefined
 }
 
 function buildI18nLinks(
@@ -303,8 +306,11 @@ async function collectStaticEntries(
   astroConfig: AstroConfig | undefined,
   sitemapOpts: SitemapOptions,
   effectiveSiteUrl: string,
+  logger: AstroLogger,
 ): Promise<SitemapEntry[]> {
   const entries: SitemapEntry[] = []
+  const builtInSkipped: string[] = []
+  const redirectSkipped: string[] = []
   for (const raw of pathnames) {
     let urlPath = raw === '' ? '/' : raw.startsWith('/') ? raw : `/${raw}`
     if (
@@ -315,9 +321,16 @@ async function collectStaticEntries(
       urlPath = `${urlPath}.html`
     }
     const fullUrl = effectiveSiteUrl ? `${effectiveSiteUrl}${urlPath}` : urlPath
-    if (shouldSkip(urlPath, sitemapOpts.exclude ?? [], sitemapOpts.filter, fullUrl)) continue
+    const reason = skipReason(urlPath, sitemapOpts.exclude ?? [], sitemapOpts.filter, fullUrl)
+    if (reason) {
+      if (reason === 'built-in') builtInSkipped.push(urlPath)
+      continue
+    }
     const { lastmod, isRedirect } = await fileInfo(outDir, urlPath)
-    if (isRedirect) continue
+    if (isRedirect) {
+      redirectSkipped.push(urlPath)
+      continue
+    }
     const filePath = urlPath === '/' || urlPath.endsWith('/')
       ? join(outDir, urlPath, 'index.html')
       : join(outDir, urlPath)
@@ -329,7 +342,19 @@ async function collectStaticEntries(
       ...(htmlMeta.priority !== undefined ? { priority: htmlMeta.priority } : {}),
     })
   }
+  logSkipped(builtInSkipped, 'excluded by built-in rules', logger)
+  logSkipped(redirectSkipped, 'excluded as meta-refresh redirect pages', logger)
   return entries
+}
+
+function logSkipped(skipped: string[], label: string, logger: AstroLogger): void {
+  if (skipped.length === 0) return
+  const shown = skipped.slice(0, 10).join(', ')
+  const rest = skipped.length - 10
+  logger.info(
+    `sitemap: ${skipped.length} path(s) ${label}: ${shown}`
+    + (rest > 0 ? `, and ${rest} more` : ''),
+  )
 }
 
 async function applySerialize(
@@ -427,7 +452,14 @@ async function writeSitemap(
     ...fallbackPathnames,
   ])
 
-  const staticEntries = await collectStaticEntries(outDir, allPathnames, astroConfig, sitemapOpts, effectiveSiteUrl)
+  const staticEntries = await collectStaticEntries(
+    outDir,
+    allPathnames,
+    astroConfig,
+    sitemapOpts,
+    effectiveSiteUrl,
+    logger,
+  )
   const sourceEntries: SitemapEntry[] = []
   for (const source of sitemapOpts.sources ?? []) {
     sourceEntries.push(...await source())

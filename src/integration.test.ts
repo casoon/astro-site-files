@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -148,6 +148,120 @@ describe('siteFiles integration', () => {
     expect(logger.warn.some(message => message.includes('sitemap/duplicate-urls'))).toBe(false)
     expect(sitemap.match(/<url>/g)).toHaveLength(1)
     expect(sitemap).toContain('<lastmod>2026-02-24</lastmod>')
+  })
+})
+
+describe('sitemap built-in exclusions', () => {
+  it('keeps content pages under /api/, /landing/ and /drafts/ in the sitemap', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com' },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [
+        { pathname: '/reference/api/authentication/' },
+        { pathname: '/landing/spring/' },
+        { pathname: '/drafts/notes/' },
+      ],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('https://example.com/reference/api/authentication/')
+    expect(sitemap).toContain('https://example.com/landing/spring/')
+    expect(sitemap).toContain('https://example.com/drafts/notes/')
+  })
+
+  it('still drops error pages and generated site files, and logs what it dropped', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com' },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [
+        { pathname: '/' },
+        { pathname: '/404' },
+        { pathname: '/_internal/thing/' },
+        { pathname: '/robots.txt' },
+      ],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('https://example.com/')
+    expect(sitemap).not.toContain('/404')
+    expect(sitemap).not.toContain('/_internal/')
+    expect(sitemap).not.toContain('/robots.txt')
+
+    const skipLog = logger.info.find(m => m.includes('excluded by built-in rules'))
+    expect(skipLog).toBeDefined()
+    expect(skipLog).toContain('3 path(s)')
+    expect(skipLog).toContain('/404')
+  })
+
+  it('logs meta-refresh redirect pages it drops', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    await mkdir(join(outDir, 'old-url'), { recursive: true })
+    await writeFile(
+      join(outDir, 'old-url', 'index.html'),
+      '<meta http-equiv="refresh" content="0;url=/new-url/">',
+      'utf-8',
+    )
+
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com' },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/old-url/' }, { pathname: '/new-url/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).not.toContain('/old-url/')
+    expect(sitemap).toContain('https://example.com/new-url/')
+
+    const redirectLog = logger.info.find(m => m.includes('meta-refresh redirect'))
+    expect(redirectLog).toBeDefined()
+    expect(redirectLog).toContain('/old-url/')
+  })
+
+  it('lets a user filter re-include a path the old heuristics would have dropped', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: {
+        filter: url => url.includes('/reference/api/'),
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com' },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [
+        { pathname: '/reference/api/authentication/' },
+        { pathname: '/about/' },
+      ],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('https://example.com/reference/api/authentication/')
+    expect(sitemap).not.toContain('https://example.com/about/')
   })
 })
 

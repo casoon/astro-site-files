@@ -408,8 +408,8 @@ This integration is completely decoupled and optional: if a page does not contai
 |---|---|---|
 | `siteUrl` | `string` | Override the site URL (auto-detected from `astro.config.site`) |
 | `sources` | `SitemapSource[]` | Async functions returning additional `SitemapEntry[]` |
-| `exclude` | `(string \| RegExp)[]` | URL paths or patterns to exclude |
-| `filter` | `(url: string) => boolean` | Custom filter on the full absolute URL |
+| `exclude` | `(string \| RegExp)[]` | URL paths or patterns to exclude — applies to auto-discovered pages only, not to `sources` |
+| `filter` | `(url: string) => boolean` | Custom filter on the full absolute URL — applies to auto-discovered pages only, not to `sources` |
 | `priority` | `PriorityRule[]` | Pattern-based priority overrides (first match wins) |
 | `changefreq` | `ChangefreqRule[]` | Pattern-based changefreq overrides (first match wins) |
 | `serialize` | `(entry) => entry \| undefined` | Per-item transform or filter hook |
@@ -421,7 +421,18 @@ This integration is completely decoupled and optional: if a page does not contai
 | `audit.warnOnEmpty` | `boolean` | Warn when sitemap has zero entries — default `true` |
 | `audit.errorOnDuplicates` | `boolean` | Emit error instead of warning for duplicate URLs — default `false` |
 
-**Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `/api/`, `/landing/`, `/drafts/`, `sitemap.xml`, `robots.txt`, `llms.txt`, `rss.xml`, and any page whose HTML starts with `<meta http-equiv="refresh">` (meta-refresh redirect pages).
+**Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `sitemap.xml`, `sitemap-index.xml`, `robots.txt`, `llms.txt`, `rss.xml`, `feed.xml`, and any page whose HTML starts with `<meta http-equiv="refresh">` (meta-refresh redirect pages). Paths dropped by these rules are listed in the build log.
+
+Path segments like `/api/`, `/landing/` and `/drafts/` are **not** excluded automatically — a docs or marketing site can serve real content there. Use `exclude` or `filter` to drop them:
+
+```ts
+siteFiles({
+  sitemap: { exclude: ['/api/', '/drafts/'] }
+})
+```
+
+> **Note:** `exclude` and `filter` apply to pages Astro discovered in the build output. Entries you add yourself via `sources` are taken as-is and are not filtered again — drop them in the source function, or use `serialize` to filter across all entries.
+
 
 **Built-in priority defaults:** `/` → 1.0, depth 1 → 0.9, depth 2 → 0.8, depth 3+ → 0.7
 
