@@ -3,7 +3,7 @@
  *
  * Two approaches:
  *
- * A) Build-time via sitemap.rss — writes rss.xml to dist/ during `astro build`.
+ * A) Build-time via the top-level `rss` option — writes rss.xml to dist/ during `astro build`.
  *    Runs in astro:build:done, outside Astro's SSR context.
  *    Use filesystem reads (e.g. gray-matter) rather than getCollection().
  *
@@ -46,30 +46,31 @@ export default defineConfig({
           },
         ],
 
-        // Generate rss.xml alongside sitemap.xml
-        rss: {
-          title: 'My Blog',
-          description: 'Latest articles about TypeScript and Astro.',
-          language: 'en',
-          getItems: async (siteUrl) => {
-            const { readdirSync, readFileSync } = await import('node:fs')
-            const matter = (await import('gray-matter')).default
-            const dir = './src/content/blog'
-            return readdirSync(dir)
-              .filter(f => f.endsWith('.md') || f.endsWith('.mdx'))
-              .map(file => {
-                const { data } = matter(readFileSync(`${dir}/${file}`, 'utf-8'))
-                if (data.draft) return null
-                return {
-                  title: data.title,
-                  pubDate: data.date,
-                  link: `${siteUrl}/blog/${file.replace(/\.(md|mdx)$/, '')}/`,
-                  description: data.description,
-                }
-              })
-              .filter(Boolean)
-              .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-          },
+      },
+
+      // rss.xml is written independently of the sitemap
+      rss: {
+        title: 'My Blog',
+        description: 'Latest articles about TypeScript and Astro.',
+        language: 'en',
+        getItems: async (siteUrl) => {
+          const { readdirSync, readFileSync } = await import('node:fs')
+          const matter = (await import('gray-matter')).default
+          const dir = './src/content/blog'
+          return readdirSync(dir)
+            .filter(f => f.endsWith('.md') || f.endsWith('.mdx'))
+            .map(file => {
+              const { data } = matter(readFileSync(`${dir}/${file}`, 'utf-8'))
+              if (data.draft) return null
+              return {
+                title: data.title,
+                pubDate: data.date,
+                link: `${siteUrl}/blog/${file.replace(/\.(md|mdx)$/, '')}/`,
+                description: data.description,
+              }
+            })
+            .filter(Boolean)
+            .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
         },
       },
     }),
@@ -101,19 +102,18 @@ export default defineConfig({
 // ── C) With custom namespace (e.g. for reading time) ─────────────────────────
 //
 // siteFiles({
-//   sitemap: {
-//     rss: {
-//       title: 'My Blog',
-//       description: 'Latest posts',
-//       xmlns: { article: 'https://example.com/ns/' },
-//       getItems: async (siteUrl) => [
-//         {
-//           title: 'Hello World',
-//           pubDate: new Date('2024-06-01'),
-//           link: `${siteUrl}/blog/hello/`,
-//           customData: '<article:readingTime>5 min</article:readingTime>',
-//         },
-//       ],
-//     },
+//   rss: {
+//     title: 'My Blog',
+//     description: 'Latest posts',
+//     xmlns: { article: 'https://example.com/ns/' },
+//     getItems: async (siteUrl) => [
+//       {
+//         title: 'Hello World',
+//         pubDate: new Date('2024-06-01'),
+//         link: `${siteUrl}/blog/hello/`,
+//         guid: 'urn:uuid:5b1c2f00-hello-world',
+//         customData: '<article:readingTime>5 min</article:readingTime>',
+//       },
+//     ],
 //   },
 // })

@@ -6,7 +6,7 @@ Astro integration that generates all standard site meta-files from typed configu
 
 - Generates `robots.txt` — crawl rules with per-agent overrides and automatic sitemap reference
 - Generates `llms.txt` — AI model discovery file following the [llmstxt.org](https://llmstxt.org) specification
-- Generates `sitemap.xml` — built-in, enabled by default, with dynamic sources, i18n hreflang and sitemap-index support
+- Generates `sitemap.xml` — built-in, enabled by default, with dynamic sources, i18n hreflang, `noindex` filtering and sitemap-index support
 - Generates `rss.xml` — RSS 2.0 feed with CDATA escaping, custom namespaces and per-item hooks
 - Generates `/.well-known/security.txt` — vulnerability disclosure contact per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116)
 - Generates `humans.txt` — team and technology credits per [humanstxt.org](https://humanstxt.org)
@@ -15,10 +15,14 @@ All files are written to the build output directory when `astro build` runs.
 
 > **Successor package.** This integration replaces [@casoon/astro-crawler-policy](https://github.com/casoon/astro-crawler-policy) (robots.txt + llms.txt) and [@casoon/astro-sitemap](https://github.com/casoon/astro-sitemap) (sitemap.xml + rss.xml). Both predecessor packages are no longer actively maintained.
 
+## Changelog
+
+Release notes live in [CHANGELOG.md](CHANGELOG.md). **0.5.0 contains behaviour changes that take effect without any config change** — `noindex` pages are dropped from the sitemap, hreflang alternates are derived from Astro's `i18n` config, locale prefixes no longer lower a page's priority, and bots with their own `robots.txt` group now inherit the global rules. See [the 0.5.0 entry](CHANGELOG.md#050--2026-09-09) before upgrading.
+
 ## Requirements
 
 - Node.js **≥ 22.12.0** (aligned with Astro 6)
-- Astro **≥ 6.0.0** (peer dependency, optional for programmatic usage)
+- Astro **≥ 6.0.0**, including Astro 7 (peer dependency, optional for programmatic usage)
 
 ## Installation
 
@@ -429,11 +433,13 @@ This integration is completely decoupled and optional: if a page does not contai
 | `sources` | `SitemapSource[]` | Async functions returning additional `SitemapEntry[]` |
 | `exclude` | `(string \| RegExp)[]` | URL paths or patterns to exclude — applies to auto-discovered pages only, not to `sources` |
 | `filter` | `(url: string) => boolean` | Custom filter on the full absolute URL — applies to auto-discovered pages only, not to `sources` |
+| `excludeNoindex` | `boolean` | Drop pages carrying `<meta name="robots" content="noindex">` — default `true` |
 | `priority` | `PriorityRule[]` | Pattern-based priority overrides (first match wins) |
 | `changefreq` | `ChangefreqRule[]` | Pattern-based changefreq overrides (first match wins) |
+| `localeAgnosticRules` | `boolean` | Make every `priority` / `changefreq` rule match without the locale prefix — default `false` |
 | `serialize` | `(entry) => entry \| undefined` | Per-item transform or filter hook |
-| `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries, plus an `x-default` link pointing at the `defaultLocale` variant |
-| `rss` | `RssConfig` | Generate an RSS 2.0 feed at build time — see [RSS feed](#rss-feed) below |
+| `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries, plus an `x-default` link pointing at the `defaultLocale` variant. Defaults to Astro's own `i18n` config when that is set |
+| `rss` | `RssConfig` | **Deprecated** — use the top-level `rss` option, see [RSS feed](#rss-feed) below |
 | `output.mode` | `'single' \| 'index'` | `index` splits into numbered chunks (auto when > `maxUrls`). In index mode the index file is always `sitemap-index.xml` and chunks are `sitemap-1.xml`, `sitemap-2.xml`, … |
 | `output.maxUrls` | `number` | Max URLs per file in index mode — default `50 000` |
 | `output.filename` | `string` | Output filename in single-file mode — default `sitemap.xml`. Ignored in index mode. |
@@ -445,6 +451,8 @@ The `Sitemap:` line in `robots.txt` automatically points at whichever file was a
 **Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `sitemap.xml`, `sitemap-index.xml`, `robots.txt`, `llms.txt`, `rss.xml`, `feed.xml`, and any page whose HTML starts with `<meta http-equiv="refresh">` (meta-refresh redirect pages). Paths dropped by these rules are listed in the build log.
 
 The error-page rules match a whole path segment only, so an article like `/blog/404-error-pages-guide/` stays in the sitemap.
+
+Pages whose `<head>` carries `<meta name="robots" content="noindex">` are dropped as well — submitting them makes Search Console report *"Submitted URL marked 'noindex'"*. Set `excludeNoindex: false` to keep them.
 
 Path segments like `/api/`, `/landing/` and `/drafts/` are **not** excluded automatically — a docs or marketing site can serve real content there. Use `exclude` or `filter` to drop them:
 
@@ -461,42 +469,62 @@ siteFiles({
 
 **Built-in changefreq defaults:** `/` and content paths (`/blog/`, `/artikel/`, etc.) → `weekly`, everything else → `monthly`
 
-**Disable:** `sitemap: false`
+Both built-in defaults ignore a known locale prefix, so `/de/` is scored like `/` and `/de/blog/x/` like `/blog/x/` instead of being pushed a level down.
 
-## RSS feed
-
-Configure `sitemap.rss` to generate an `rss.xml` at build time alongside the sitemap. `getItems` runs in `astro:build:done` — use filesystem reads rather than `getCollection()`, which is only available in Astro's SSR context.
+**Your own rules match the real, prefixed path by default** — that is what lets you target a single language. On a multilingual site you usually want the opposite, so set `localeAgnosticRules: true` to have every rule matched against the locale-stripped path, and use a rule's own `allLocales` to make an exception either way:
 
 ```ts
 siteFiles({
   sitemap: {
-    rss: {
-      title: 'My Blog',
-      description: 'Latest articles about TypeScript and Astro.',
-      language: 'en',
-      getItems: async (siteUrl) => {
-        const { readdirSync, readFileSync } = await import('node:fs')
-        const matter = (await import('gray-matter')).default
-        const dir = './src/content/blog'
-        return readdirSync(dir)
-          .filter(f => f.endsWith('.mdx'))
-          .map(file => {
-            const { data } = matter(readFileSync(`${dir}/${file}`, 'utf-8'))
-            if (data.draft) return null
-            return {
-              title: data.title,
-              pubDate: data.date,
-              link: `${siteUrl}/blog/${file.replace(/\.mdx$/, '')}/`,
-              description: data.description,
-            }
-          })
-          .filter(Boolean)
-          .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
-      },
+    localeAgnosticRules: true,
+    changefreq: [
+      // matches /blog/, /de/blog/, /fr/blog/ …
+      { pattern: '/blog/', changefreq: 'daily' },
+      // opts back out — only the German campaign page
+      { pattern: '/de/aktion/', changefreq: 'hourly', allLocales: false },
+    ],
+  },
+})
+```
+
+Locales are taken from `sitemap.i18n`, which itself defaults to Astro's `i18n` config — so this works without repeating the locale list.
+
+**Disable:** `sitemap: false`
+
+## RSS feed
+
+Configure the top-level `rss` option to generate an `rss.xml` at build time. `getItems` runs in `astro:build:done` — use filesystem reads rather than `getCollection()`, which is only available in Astro's SSR context.
+
+```ts
+siteFiles({
+  rss: {
+    title: 'My Blog',
+    description: 'Latest articles about TypeScript and Astro.',
+    language: 'en',
+    getItems: async (siteUrl) => {
+      const { readdirSync, readFileSync } = await import('node:fs')
+      const matter = (await import('gray-matter')).default
+      const dir = './src/content/blog'
+      return readdirSync(dir)
+        .filter(f => f.endsWith('.mdx'))
+        .map(file => {
+          const { data } = matter(readFileSync(`${dir}/${file}`, 'utf-8'))
+          if (data.draft) return null
+          return {
+            title: data.title,
+            pubDate: data.date,
+            link: `${siteUrl}/blog/${file.replace(/\.mdx$/, '')}/`,
+            description: data.description,
+          }
+        })
+        .filter(Boolean)
+        .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
     },
   },
 })
 ```
+
+The feed is its own resource, so it is written even with `sitemap: false`. The older `sitemap.rss` placement still works and is read as a fallback, but it is deprecated.
 
 **`rss` option reference:**
 
@@ -519,11 +547,15 @@ Each object returned by `getItems`:
 |---|---|---|
 | `title` | `string` | **Required.** Item title |
 | `pubDate` | `Date \| string` | **Required.** Publication date |
-| `link` | `string` | **Required.** Full URL or root-relative path |
+| `link` | `string` | **Required.** Full URL, root-relative path, or bare path — relative forms are joined onto `siteUrl` |
 | `description` | `string` | Short summary |
+| `guid` | `string` | Stable item identity (UUID, URN, …). Defaults to `link`, which is then marked `isPermaLink="true"` |
+| `guidIsPermaLink` | `boolean` | Overrides whether the `guid` is announced as a resolvable URL |
 | `author` | `string` | Author name or email |
 | `categories` | `string[]` | Category tags |
 | `customData` | `string` | Raw XML injected inside `<item>` (e.g. for custom namespaced elements) |
+
+An unparseable `pubDate` is omitted rather than rendered as `Invalid Date`, which would make the feed unreadable for every validator and reader.
 
 ### RSS API route (`/rss` sub-path)
 
@@ -552,7 +584,7 @@ export const GET = createRssRoute({
 })
 ```
 
-Both approaches can coexist: build-time `sitemap.rss` for static deploys, API route for development previewing.
+Both approaches can coexist: the build-time `rss` option for static deploys, the API route for development previewing.
 
 ## security.txt
 
@@ -665,6 +697,9 @@ The integration emits build-time hints when configuration looks incomplete or in
 | `llms/no-sections` | info | `llms` has no `sections` or `sources` |
 | `llms/sections-without-links` | info | Sections exist but none have `links` (and no `sources` configured) |
 | `security/no-expires` | warn | `security` has no `expires` date (required by RFC 9116) |
+| `security/invalid-expires` | error | `security.expires` is not a parseable date |
+| `security/expired` | error | `security.expires` is in the past — scanners discard the whole file |
+| `security/contact-not-a-uri` | error | A `contact` value has no URI scheme (`mailto:`, `https:`, `tel:`) |
 | `security/no-policy` | info | `security` has no `policy` URL |
 | `humans/no-team` | info | `humans` has no `team` entries |
 | `humans/no-technology` | info | `humans` has no `technology` entries |
@@ -708,7 +743,7 @@ Passing `audit: false` is equivalent to `audit: { enabled: false }`.
 | `robots` | Enabled — generates `robots.txt` that allows all crawlers by default |
 | `llms` | Disabled — requires `{ title }` |
 | `sitemap` | Enabled — built-in sitemap generation from Astro's build output |
-| `sitemap.rss` | Disabled — requires `{ title, description, getItems }` |
+| `rss` | Disabled — requires `{ title, description, getItems }`. Written independently of `sitemap` |
 | `security` | Disabled — requires `{ contact }` |
 | `humans` | Disabled — generates when any option is provided |
 | `audit` | Enabled — emits build-time hints for all generated files |
