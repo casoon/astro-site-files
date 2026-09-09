@@ -155,6 +155,25 @@ siteFiles({
 
 `inherit` means no rule is emitted for that group — `User-agent: *` applies. `citationFriendly` and `blockTraining` additionally override specific training bots via `bots` regardless of the `verifiedAi` group setting.
 
+**Global rules and bot groups:** a crawler obeys only the single most specific group that matches it, so a bot with its own block would otherwise ignore `User-agent: *` entirely. Your global `allow` / `disallow` / `crawlDelay` are therefore repeated inside every generated **allow** block:
+
+```ts
+siteFiles({
+  robots: { disallow: ['/admin/'], preset: 'seoOnly' }
+})
+```
+
+```
+User-agent: *
+Disallow: /admin/
+
+User-agent: Googlebot
+Allow: /
+Disallow: /admin/
+```
+
+Blocked bots keep a bare `Disallow: /` — a global `Allow:` must not punch a hole into a bot you deliberately blocked outright. Explicit `agents` blocks are left exactly as you wrote them.
+
 **Group overrides** let you adjust one category without changing the preset for others:
 
 ```ts
@@ -413,7 +432,7 @@ This integration is completely decoupled and optional: if a page does not contai
 | `priority` | `PriorityRule[]` | Pattern-based priority overrides (first match wins) |
 | `changefreq` | `ChangefreqRule[]` | Pattern-based changefreq overrides (first match wins) |
 | `serialize` | `(entry) => entry \| undefined` | Per-item transform or filter hook |
-| `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries |
+| `i18n` | `{ defaultLocale, locales }` | Generates `<xhtml:link rel="alternate">` hreflang entries, plus an `x-default` link pointing at the `defaultLocale` variant |
 | `rss` | `RssConfig` | Generate an RSS 2.0 feed at build time — see [RSS feed](#rss-feed) below |
 | `output.mode` | `'single' \| 'index'` | `index` splits into numbered chunks (auto when > `maxUrls`). In index mode the index file is always `sitemap-index.xml` and chunks are `sitemap-1.xml`, `sitemap-2.xml`, … |
 | `output.maxUrls` | `number` | Max URLs per file in index mode — default `50 000` |
@@ -421,7 +440,11 @@ This integration is completely decoupled and optional: if a page does not contai
 | `audit.warnOnEmpty` | `boolean` | Warn when sitemap has zero entries — default `true` |
 | `audit.errorOnDuplicates` | `boolean` | Emit error instead of warning for duplicate URLs — default `false` |
 
+The `Sitemap:` line in `robots.txt` automatically points at whichever file was actually written — `sitemap-index.xml` in index mode, or your `output.filename`. Set `robots.sitemap` to a string to override it.
+
 **Built-in exclusions** (always applied): `/404`, `/500`, `/_*`, `sitemap.xml`, `sitemap-index.xml`, `robots.txt`, `llms.txt`, `rss.xml`, `feed.xml`, and any page whose HTML starts with `<meta http-equiv="refresh">` (meta-refresh redirect pages). Paths dropped by these rules are listed in the build log.
+
+The error-page rules match a whole path segment only, so an article like `/blog/404-error-pages-guide/` stays in the sitemap.
 
 Path segments like `/api/`, `/landing/` and `/drafts/` are **not** excluded automatically — a docs or marketing site can serve real content there. Use `exclude` or `filter` to drop them:
 

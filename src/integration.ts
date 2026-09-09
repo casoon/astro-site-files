@@ -1,4 +1,4 @@
-import { mkdir, open, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
@@ -33,8 +33,8 @@ const BUILT_IN_SKIP: RegExp[] = [
   /^\/llms\.txt$/,
   /^\/rss\.xml$/,
   /^\/feed\.xml$/,
-  /\/404\b/,
-  /\/500\b/,
+  // Anchored: `/blog/404-error-pages-guide/` is a content page, not an error page.
+  /\/(404|500)(\.html)?\/?$/,
   /^\/_/,
 ]
 
@@ -124,27 +124,37 @@ function buildI18nLinks(
       hreflang: locales[locale] ?? locale,
       href: e.loc,
     }))
+    // x-default tells search engines which variant to serve for unmatched locales.
+    const fallback = group.find(g => g.locale === defaultLocale)
+    if (fallback) links.push({ hreflang: 'x-default', href: fallback.entry.loc })
     return { ...entry, links }
   })
 }
 
-async function fileInfo(outDir: string, urlPath: string): Promise<{ lastmod?: string; isRedirect: boolean }> {
-  const filePath = urlPath === '/' || urlPath.endsWith('/')
+function pageFilePath(outDir: string, urlPath: string): string {
+  return urlPath === '/' || urlPath.endsWith('/')
     ? join(outDir, urlPath, 'index.html')
     : join(outDir, urlPath)
-  const s = await stat(filePath).catch(() => null)
-  if (!s) return { isRedirect: false }
-  const lastmod = s.mtime.toISOString().split('T')[0]
+}
 
-  // Read the first 512 bytes to detect meta-refresh redirect pages
-  const fh = await open(filePath, 'r').catch(() => null)
-  if (!fh) return { lastmod, isRedirect: false }
+interface PageInfo {
+  lastmod?: string
+  isRedirect: boolean
+  changefreq?: Changefreq
+  priority?: number
+}
+
+/** One open() per page — mtime, redirect detection and metadata all come from it. */
+async function readPageInfo(outDir: string, urlPath: string): Promise<PageInfo> {
+  const fh = await open(pageFilePath(outDir, urlPath), 'r').catch(() => null)
+  if (!fh) return { isRedirect: false }
   try {
-    const buf = Buffer.alloc(512)
-    const { bytesRead } = await fh.read(buf, 0, 512, 0)
-    const head = buf.toString('utf8', 0, bytesRead).toLowerCase()
-    const isRedirect = head.includes('<meta http-equiv="refresh"')
-    return { lastmod, isRedirect }
+    const [stats, content] = await Promise.all([fh.stat(), fh.readFile('utf-8')])
+    const lastmod = stats.mtime.toISOString().split('T')[0]
+    if (content.slice(0, 512).toLowerCase().includes('<meta http-equiv="refresh"')) {
+      return { lastmod, isRedirect: true }
+    }
+    return { lastmod, isRedirect: false, ...parseHtmlMetadata(content) }
   } finally {
     await fh.close()
   }
@@ -152,10 +162,7 @@ async function fileInfo(outDir: string, urlPath: string): Promise<{ lastmod?: st
 
 const VALID_CHANGEFREQS = new Set<string>(['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'])
 
-async function readHtmlMetadata(filePath: string): Promise<{ changefreq?: Changefreq; priority?: number }> {
-  const content = await readFile(filePath, 'utf-8').catch(() => '')
-  if (!content) return {}
-
+function parseHtmlMetadata(content: string): { changefreq?: Changefreq; priority?: number } {
   // Capture the full opening tag of a JSON-LD script to find data-sitemap-* attributes
   // regardless of attribute order
   const jsonLdMatch = /<script\s+([^>]*type=["']application\/ld\+json["'][^>]*)>/i.exec(content)
@@ -175,6 +182,22 @@ async function readHtmlMetadata(filePath: string): Promise<{ changefreq?: Change
     if (!isNaN(val)) res.priority = val
   }
   return res
+}
+
+const READ_CONCURRENCY = 16
+
+/** Bounded-concurrency map that preserves input order. */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await fn(items[index]!)
+    }
+  })
+  await Promise.all(workers)
+  return results
 }
 
 
@@ -211,14 +234,16 @@ export default function siteFiles(options: SiteFilesOptions = {}): AstroIntegrat
       }) {
         const outDir = fileURLToPath(dir)
 
-        await writeRobots(outDir, options, astroConfig, logger)
+        // Sitemap first: robots.txt has to reference the file that was actually
+        // written, which in index mode is `sitemap-index.xml`, not `sitemap.xml`.
+        const sitemapFilename = options.sitemap !== false
+          ? await writeSitemap(outDir, options, astroConfig, pages, fallbackPathnames, logger)
+          : undefined
+
+        await writeRobots(outDir, options, astroConfig, logger, sitemapFilename)
         await writeLlms(outDir, options, logger)
         await writeSecurity(outDir, options, logger)
         await writeHumans(outDir, options, logger)
-
-        if (options.sitemap !== false) {
-          await writeSitemap(outDir, options, astroConfig, pages, fallbackPathnames, logger)
-        }
       },
     },
   }
@@ -231,11 +256,12 @@ async function writeRobots(
   options: SiteFilesOptions,
   astroConfig: AstroConfig | undefined,
   logger: AstroLogger,
+  sitemapFilename: string | undefined,
 ): Promise<void> {
   if (options.robots === false) return
   const robotsOpts: RobotsOptions = typeof options.robots === 'object' ? options.robots : {}
   const siteUrl = astroConfig?.site ? buildSiteWithBase(String(astroConfig.site), astroConfig.base) : undefined
-  await writeFile(join(outDir, 'robots.txt'), renderRobotsTxt(robotsOpts, siteUrl), 'utf-8')
+  await writeFile(join(outDir, 'robots.txt'), renderRobotsTxt(robotsOpts, siteUrl, sitemapFilename), 'utf-8')
   logger.info('robots.txt generated')
   for (const issue of filterIssues(auditRobots(robotsOpts), options.audit)) {
     logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
@@ -308,9 +334,9 @@ async function collectStaticEntries(
   effectiveSiteUrl: string,
   logger: AstroLogger,
 ): Promise<SitemapEntry[]> {
-  const entries: SitemapEntry[] = []
   const builtInSkipped: string[] = []
-  const redirectSkipped: string[] = []
+  const candidates: Array<{ urlPath: string; fullUrl: string }> = []
+
   for (const raw of pathnames) {
     let urlPath = raw === '' ? '/' : raw.startsWith('/') ? raw : `/${raw}`
     if (
@@ -326,22 +352,27 @@ async function collectStaticEntries(
       if (reason === 'built-in') builtInSkipped.push(urlPath)
       continue
     }
-    const { lastmod, isRedirect } = await fileInfo(outDir, urlPath)
-    if (isRedirect) {
-      redirectSkipped.push(urlPath)
+    candidates.push({ urlPath, fullUrl })
+  }
+
+  const infos = await mapLimit(candidates, READ_CONCURRENCY, c => readPageInfo(outDir, c.urlPath))
+
+  const entries: SitemapEntry[] = []
+  const redirectSkipped: string[] = []
+  for (const [i, candidate] of candidates.entries()) {
+    const info = infos[i]!
+    if (info.isRedirect) {
+      redirectSkipped.push(candidate.urlPath)
       continue
     }
-    const filePath = urlPath === '/' || urlPath.endsWith('/')
-      ? join(outDir, urlPath, 'index.html')
-      : join(outDir, urlPath)
-    const htmlMeta = await readHtmlMetadata(filePath)
     entries.push({
-      loc: fullUrl,
-      lastmod,
-      ...(htmlMeta.changefreq ? { changefreq: htmlMeta.changefreq } : {}),
-      ...(htmlMeta.priority !== undefined ? { priority: htmlMeta.priority } : {}),
+      loc: candidate.fullUrl,
+      lastmod: info.lastmod,
+      ...(info.changefreq ? { changefreq: info.changefreq } : {}),
+      ...(info.priority !== undefined ? { priority: info.priority } : {}),
     })
   }
+
   logSkipped(builtInSkipped, 'excluded by built-in rules', logger)
   logSkipped(redirectSkipped, 'excluded as meta-refresh redirect pages', logger)
   return entries
@@ -376,7 +407,7 @@ async function writeSitemapOutput(
   sitemapOpts: SitemapOptions,
   effectiveSiteUrl: string,
   logger: AstroLogger,
-): Promise<void> {
+): Promise<string> {
   await mkdir(outDir, { recursive: true })
   const maxUrls = sitemapOpts.output?.maxUrls ?? 50_000
   const filename = sitemapOpts.output?.filename ?? 'sitemap.xml'
@@ -385,8 +416,8 @@ async function writeSitemapOutput(
   if (!useIndex) {
     const xml = renderSitemapXml(entries, `Generated by ${PLUGIN}`)
     await writeFile(join(outDir, filename), xml, 'utf-8')
-    logger.info(`sitemap.xml generated (${entries.length} URLs)`)
-    return
+    logger.info(`${filename} generated (${entries.length} URLs)`)
+    return filename
   }
 
   const chunks: ResolvedSitemapEntry[][] = []
@@ -406,6 +437,7 @@ async function writeSitemapOutput(
   const indexXml = renderSitemapIndex(indexEntries)
   await writeFile(join(outDir, 'sitemap-index.xml'), indexXml, 'utf-8')
   logger.info(`sitemap-index.xml generated (${chunks.length} parts, ${entries.length} total URLs)`)
+  return 'sitemap-index.xml'
 }
 
 async function writeSitemapRss(
@@ -439,7 +471,7 @@ async function writeSitemap(
   pages: Array<{ pathname: string }>,
   fallbackPathnames: string[],
   logger: AstroLogger,
-): Promise<void> {
+): Promise<string> {
   const sitemapOpts: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
 
   const siteUrl = (
@@ -478,12 +510,14 @@ async function writeSitemap(
   }
 
   for (const issue of filterIssues(issues, options.audit)) {
-    logger[issue.level]?.(`[${issue.rule}] ${issue.message} — ${issue.help}`)
+    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
   }
 
-  await writeSitemapOutput(outDir, entries, sitemapOpts, effectiveSiteUrl, logger)
+  const sitemapFilename = await writeSitemapOutput(outDir, entries, sitemapOpts, effectiveSiteUrl, logger)
 
   if (sitemapOpts.rss) {
     await writeSitemapRss(outDir, sitemapOpts.rss, effectiveSiteUrl, siteUrl, logger)
   }
+
+  return sitemapFilename
 }

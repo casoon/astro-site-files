@@ -36,3 +36,26 @@ describe('renderSitemapIndex', () => {
     expect(result).toContain('<loc>https://example.com/sitemap.xml?lang=de&amp;v=1</loc>')
   })
 })
+
+describe('renderSitemapXml priority formatting', () => {
+  it('keeps the conventional one-decimal form for round values', () => {
+    const result = renderSitemapXml([
+      { loc: 'https://example.com/', lastmod: '2026-05-09', changefreq: 'weekly', priority: 1 },
+      { loc: 'https://example.com/a/', lastmod: '2026-05-09', changefreq: 'weekly', priority: 0.7 },
+    ])
+
+    expect(result).toContain('<priority>1.0</priority>')
+    expect(result).toContain('<priority>0.7</priority>')
+  })
+
+  it('does not round away a deliberately configured priority', () => {
+    const result = renderSitemapXml([
+      { loc: 'https://example.com/a/', lastmod: '2026-05-09', changefreq: 'weekly', priority: 0.55 },
+      { loc: 'https://example.com/b/', lastmod: '2026-05-09', changefreq: 'weekly', priority: 0.85 },
+    ])
+
+    expect(result).toContain('<priority>0.55</priority>')
+    expect(result).toContain('<priority>0.85</priority>')
+  })
+})
+

@@ -323,3 +323,141 @@ describe('llms sources', () => {
     expect(llms).toContain('## Blog')
   })
 })
+
+describe('robots.txt / sitemap filename coupling', () => {
+  it('references sitemap-index.xml in robots.txt when the index mode is used', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ sitemap: { output: { mode: 'index' } } })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const robots = await readFile(join(outDir, 'robots.txt'), 'utf-8')
+    expect(robots).toContain('Sitemap: https://example.com/sitemap-index.xml')
+    await expect(readFile(join(outDir, 'sitemap-index.xml'), 'utf-8')).resolves.toBeTruthy()
+  })
+
+  it('references a custom sitemap filename in robots.txt', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ sitemap: { output: { filename: 'my-sitemap.xml' } } })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const robots = await readFile(join(outDir, 'robots.txt'), 'utf-8')
+    expect(robots).toContain('Sitemap: https://example.com/my-sitemap.xml')
+  })
+
+  it('falls back to sitemap.xml when sitemap generation is disabled', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ sitemap: false })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const robots = await readFile(join(outDir, 'robots.txt'), 'utf-8')
+    expect(robots).toContain('Sitemap: https://example.com/sitemap.xml')
+  })
+})
+
+describe('error page exclusion', () => {
+  it('drops real error pages but keeps content pages that merely start with 404/500', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [
+        { pathname: '/blog/404-error-pages-guide/' },
+        { pathname: '/blog/500-internal-errors/' },
+        { pathname: '/404/' },
+        { pathname: '/de/500/' },
+      ],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('https://example.com/blog/404-error-pages-guide/')
+    expect(sitemap).toContain('https://example.com/blog/500-internal-errors/')
+    expect(sitemap).not.toContain('https://example.com/404/')
+    expect(sitemap).not.toContain('https://example.com/de/500/')
+  })
+
+  it('drops error pages built with build.format: file', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com', build: { format: 'file' } },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/404' }, { pathname: '/about' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).not.toContain('/404.html')
+    expect(sitemap).toContain('https://example.com/about.html')
+  })
+})
+
+describe('sitemap i18n', () => {
+  it('adds an x-default link pointing at the default locale', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: { i18n: { defaultLocale: 'en', locales: { en: 'en-US', de: 'de-DE' } } },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/about/' }, { pathname: '/de/about/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('hreflang="x-default" href="https://example.com/about/"')
+    expect(sitemap).toContain('hreflang="de-DE" href="https://example.com/de/about/"')
+  })
+
+  it('does not add x-default to pages without translations', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: { i18n: { defaultLocale: 'en', locales: { en: 'en-US', de: 'de-DE' } } },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/only-english/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).not.toContain('x-default')
+  })
+})
+

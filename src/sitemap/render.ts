@@ -11,6 +11,15 @@ function escapeXml(value: string): string {
     .replaceAll("'", '&apos;')
 }
 
+/**
+ * Keep the conventional one-decimal form when it is exact, but never round away
+ * a priority the user configured deliberately (0.55 must not become 0.6).
+ */
+function formatPriority(priority: number): string {
+  const oneDecimal = priority.toFixed(1)
+  return Number(oneDecimal) === priority ? oneDecimal : String(priority)
+}
+
 export function renderSitemapXml(entries: ResolvedSitemapEntry[], comment?: string): string {
   const hasHreflang = entries.some(e => e.links && e.links.length > 0)
   const urlsetAttrs = hasHreflang
@@ -26,7 +35,7 @@ export function renderSitemapXml(entries: ResolvedSitemapEntry[], comment?: stri
     lines.push(`    <loc>${escapeXml(entry.loc)}</loc>`)
     lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
     lines.push(`    <changefreq>${escapeXml(entry.changefreq)}</changefreq>`)
-    lines.push(`    <priority>${entry.priority.toFixed(1)}</priority>`)
+    lines.push(`    <priority>${formatPriority(entry.priority)}</priority>`)
     if (entry.links) {
       for (const link of entry.links) {
         lines.push(`    <xhtml:link rel="alternate" hreflang="${escapeXml(link.hreflang)}" href="${escapeXml(link.href)}"/>`)

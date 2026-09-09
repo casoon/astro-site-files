@@ -51,13 +51,33 @@ function compileRegistryRules(options: RobotsOptions): AgentRule[] {
     const action = resolveAction(bot, mergedBots, mergedGroups)
     if (action === 'inherit') continue
     const ua = bot.userAgents.length === 1 ? bot.userAgents[0]! : bot.userAgents
-    rules.push(action === 'disallow' ? { userAgent: ua, disallow: ['/'] } : { userAgent: ua, allow: ['/'] })
+    rules.push(action === 'disallow' ? { userAgent: ua, disallow: ['/'] } : allowRule(ua, options))
   }
 
   return rules
 }
 
-export function renderRobotsTxt(options: RobotsOptions, siteUrl?: string): string {
+/**
+ * A crawler obeys only the single most specific group that matches it, so a bot
+ * that gets its own block would otherwise ignore the global `User-agent: *`
+ * rules entirely. Repeat them inside every allow block.
+ *
+ * Disallow blocks stay bare `Disallow: /` — a global `Allow:` must not punch a
+ * hole into a bot that was deliberately blocked outright.
+ */
+function allowRule(userAgent: string | string[], options: RobotsOptions): AgentRule {
+  const rule: AgentRule = { userAgent, allow: ['/', ...(options.allow ?? [])] }
+  if (options.disallow?.length) rule.disallow = options.disallow
+  if (options.crawlDelay !== undefined) rule.crawlDelay = options.crawlDelay
+  return rule
+}
+
+export function renderRobotsTxt(
+  options: RobotsOptions,
+  siteUrl?: string,
+  /** Filename the sitemap writer actually produced — `sitemap-index.xml` in index mode. */
+  sitemapFilename = 'sitemap.xml',
+): string {
   const lines: string[] = []
 
   lines.push('User-agent: *')
@@ -92,7 +112,7 @@ export function renderRobotsTxt(options: RobotsOptions, siteUrl?: string): strin
       typeof options.sitemap === 'string'
         ? options.sitemap
         : siteUrl
-          ? `${siteUrl.replace(/\/$/, '')}/sitemap.xml`
+          ? `${siteUrl.replace(/\/$/, '')}/${sitemapFilename}`
           : undefined
     if (sitemapUrl) {
       lines.push('')
