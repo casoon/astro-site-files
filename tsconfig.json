@@ -8,6 +8,7 @@
     "declarationMap": true,
     "emitDeclarationOnly": false,
     "skipLibCheck": true,
+    "types": ["node"],
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,

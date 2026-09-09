@@ -20,6 +20,7 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "keywords": [
@@ -35,7 +36,7 @@
   ],
   "license": "MIT",
   "author": {
-    "name": "Jörn Seidel",
+    "name": "J\u00f6rn Seidel",
     "url": "https://www.casoon.de",
     "email": "info@casoon.de"
   },
@@ -67,8 +68,8 @@
     "prepublishOnly": "npm test && npm run build"
   },
   "devDependencies": {
-    "@types/node": "^26.0.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.0"
+    "@types/node": "^26.5.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }
