@@ -96,8 +96,22 @@ export function auditLlms(options: LlmsOptions): AuditIssue[] {
 
 // ── security.txt ──────────────────────────────────────────────────────────────
 
+/** RFC 9116 §2.5.3: every Contact value has to be a URI, not a bare address. */
+const CONTACT_URI = /^[a-z][a-z0-9+.-]*:/i
+
 export function auditSecurity(options: SecurityOptions): AuditIssue[] {
   const issues: AuditIssue[] = []
+
+  const contacts = Array.isArray(options.contact) ? options.contact : [options.contact]
+  const bareContacts = contacts.filter(c => c && !CONTACT_URI.test(c))
+  if (bareContacts.length > 0) {
+    issues.push({
+      level: 'error',
+      rule: 'security/contact-not-a-uri',
+      message: `security.txt Contact is not a URI: ${bareContacts.join(', ')}`,
+      help: 'RFC 9116 requires a URI scheme. Write "mailto:security@example.com", "https://example.com/security" or "tel:+49...", not a bare address.',
+    })
+  }
 
   if (!options.expires) {
     issues.push({
@@ -106,6 +120,23 @@ export function auditSecurity(options: SecurityOptions): AuditIssue[] {
       message: 'security.txt has no Expires field',
       help: 'RFC 9116 requires an Expires date so that outdated contact information is not trusted. Add `expires` as an ISO 8601 date string, e.g. "2027-01-01T00:00:00.000Z".',
     })
+  } else {
+    const expires = options.expires instanceof Date ? options.expires : new Date(options.expires)
+    if (Number.isNaN(expires.getTime())) {
+      issues.push({
+        level: 'error',
+        rule: 'security/invalid-expires',
+        message: `security.txt Expires is not a valid date: ${String(options.expires)}`,
+        help: 'Use an ISO 8601 timestamp, e.g. "2027-01-01T00:00:00.000Z", or a Date instance.',
+      })
+    } else if (expires.getTime() <= Date.now()) {
+      issues.push({
+        level: 'error',
+        rule: 'security/expired',
+        message: `security.txt expired on ${expires.toISOString()}`,
+        help: 'Scanners discard an expired security.txt entirely. Move `expires` into the future — RFC 9116 recommends less than a year out.',
+      })
+    }
   }
 
   if (!options.policy) {

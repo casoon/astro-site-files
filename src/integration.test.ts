@@ -461,3 +461,296 @@ describe('sitemap i18n', () => {
   })
 })
 
+describe('noindex pages', () => {
+  it('drops pages whose head carries meta robots noindex', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    await mkdir(join(outDir, 'thanks'), { recursive: true })
+    await mkdir(join(outDir, 'about'), { recursive: true })
+    await writeFile(
+      join(outDir, 'thanks/index.html'),
+      '<html><head><meta charset="utf-8"><meta name="robots" content="noindex, follow"></head><body>ok</body></html>',
+    )
+    await writeFile(join(outDir, 'about/index.html'), '<html><head></head><body>ok</body></html>')
+
+    const integration = siteFiles({ robots: false })
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/thanks/' }, { pathname: '/about/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).not.toContain('https://example.com/thanks/')
+    expect(sitemap).toContain('https://example.com/about/')
+  })
+
+  it('keeps noindex pages when excludeNoindex is disabled', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    await mkdir(join(outDir, 'thanks'), { recursive: true })
+    await writeFile(
+      join(outDir, 'thanks/index.html'),
+      '<html><head><meta name="robots" content="noindex"></head><body>ok</body></html>',
+    )
+
+    const integration = siteFiles({ robots: false, sitemap: { excludeNoindex: false } })
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/thanks/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    expect(await readFile(join(outDir, 'sitemap.xml'), 'utf-8')).toContain('https://example.com/thanks/')
+  })
+
+  it('ignores a noindex directive that only appears in the body', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    await mkdir(join(outDir, 'docs'), { recursive: true })
+    await writeFile(
+      join(outDir, 'docs/index.html'),
+      '<html><head></head><body><code>&lt;meta name="robots" content="noindex"&gt;</code>'
+      + '<meta name="robots" content="noindex"></body></html>',
+    )
+
+    const integration = siteFiles({ robots: false })
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/docs/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    expect(await readFile(join(outDir, 'sitemap.xml'), 'utf-8')).toContain('https://example.com/docs/')
+  })
+})
+
+describe('page files on disk', () => {
+  it('reads index.html when a pathname without a trailing slash maps to a directory', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    await mkdir(join(outDir, 'de/about'), { recursive: true })
+    await writeFile(
+      join(outDir, 'de/about/index.html'),
+      '<html><head><script type="application/ld+json" data-sitemap-priority="0.95">{}</script></head></html>',
+    )
+
+    const integration = siteFiles({ robots: false })
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/de/about' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('https://example.com/de/about')
+    expect(sitemap).toContain('<priority>0.95</priority>')
+  })
+
+  it('reads sitemap data-attributes from a later JSON-LD block', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    await mkdir(join(outDir, 'post'), { recursive: true })
+    await writeFile(
+      join(outDir, 'post/index.html'),
+      '<html><head>'
+      + '<script type="application/ld+json">{"@type":"Organization"}</script>'
+      + '<script type="application/ld+json" data-sitemap-changefreq="daily" data-sitemap-priority="0.9">{"@type":"Article"}</script>'
+      + '</head></html>',
+    )
+
+    const integration = siteFiles({ robots: false })
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/post/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('<changefreq>daily</changefreq>')
+    expect(sitemap).toContain('<priority>0.9</priority>')
+  })
+})
+
+describe('i18n from the Astro config', () => {
+  it('derives hreflang links from astroConfig.i18n', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    getHook(integration, 'astro:config:setup')({
+      config: {
+        site: 'https://example.com',
+        i18n: { defaultLocale: 'en', locales: ['en', { path: 'de', codes: ['de-DE', 'de-AT'] }] },
+      },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/about/' }, { pathname: '/de/about/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('hreflang="de-DE" href="https://example.com/de/about/"')
+    expect(sitemap).toContain('hreflang="x-default" href="https://example.com/about/"')
+  })
+
+  it('gives a locale home page the same priority as the default-locale home page', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false })
+
+    getHook(integration, 'astro:config:setup')({
+      config: {
+        site: 'https://example.com',
+        i18n: { defaultLocale: 'en', locales: ['en', 'de'] },
+      },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }, { pathname: '/de/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    const german = sitemap.split('<url>').find(u => u.includes('https://example.com/de/'))
+    expect(german).toContain('<priority>1.0</priority>')
+    expect(german).toContain('<changefreq>weekly</changefreq>')
+  })
+
+  it('lets an explicit sitemap.i18n override the Astro config', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: { i18n: { defaultLocale: 'en', locales: { en: 'en', de: 'de-CH' } } },
+    })
+
+    getHook(integration, 'astro:config:setup')({
+      config: {
+        site: 'https://example.com',
+        i18n: { defaultLocale: 'en', locales: ['en', { path: 'de', codes: ['de-DE'] }] },
+      },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/about/' }, { pathname: '/de/about/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    expect(await readFile(join(outDir, 'sitemap.xml'), 'utf-8')).toContain('hreflang="de-CH"')
+  })
+})
+
+describe('top-level rss option', () => {
+  it('writes the feed even when the sitemap is disabled', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: false,
+      rss: {
+        title: 'Blog',
+        description: 'Posts',
+        getItems: () => [{ title: 'Hello', pubDate: new Date('2026-01-02'), link: '/blog/hello/' }],
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const feed = await readFile(join(outDir, 'rss.xml'), 'utf-8')
+    expect(feed).toContain('<link>https://example.com/blog/hello/</link>')
+  })
+
+  it('still honours the deprecated sitemap.rss placement', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: {
+        rss: {
+          title: 'Blog',
+          description: 'Posts',
+          getItems: () => [{ title: 'Hello', pubDate: new Date('2026-01-02'), link: '/blog/hello/' }],
+        },
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    expect(await readFile(join(outDir, 'rss.xml'), 'utf-8')).toContain('<title><![CDATA[Hello]]></title>')
+  })
+})
+
+describe('locale-agnostic priority/changefreq rules', () => {
+  const astroI18n = { defaultLocale: 'en', locales: ['en', 'de'] }
+
+  async function build(sitemap: Record<string, unknown>): Promise<string> {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false, sitemap })
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com', i18n: astroI18n },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/blog/post/' }, { pathname: '/de/blog/post/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+    return readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+  }
+
+  function entryFor(sitemap: string, loc: string): string {
+    return sitemap.split('<url>').find(u => u.includes(`<loc>${loc}</loc>`))!
+  }
+
+  it('matches the real prefixed path by default', async () => {
+    const xml = await build({ changefreq: [{ pattern: '/blog/', changefreq: 'hourly' }] })
+    expect(entryFor(xml, 'https://example.com/blog/post/')).toContain('<changefreq>hourly</changefreq>')
+    expect(entryFor(xml, 'https://example.com/de/blog/post/')).toContain('<changefreq>weekly</changefreq>')
+  })
+
+  it('applies every rule across locales when localeAgnosticRules is on', async () => {
+    const xml = await build({
+      localeAgnosticRules: true,
+      changefreq: [{ pattern: '/blog/', changefreq: 'hourly' }],
+      priority: [{ pattern: '/blog/', priority: 0.95 }],
+    })
+    for (const loc of ['https://example.com/blog/post/', 'https://example.com/de/blog/post/']) {
+      expect(entryFor(xml, loc)).toContain('<changefreq>hourly</changefreq>')
+      expect(entryFor(xml, loc)).toContain('<priority>0.95</priority>')
+    }
+  })
+
+  it('lets a single rule opt in via allLocales', async () => {
+    const xml = await build({ changefreq: [{ pattern: '/blog/', changefreq: 'hourly', allLocales: true }] })
+    expect(entryFor(xml, 'https://example.com/de/blog/post/')).toContain('<changefreq>hourly</changefreq>')
+  })
+
+  it('lets a single rule opt out again to target one locale', async () => {
+    const xml = await build({
+      localeAgnosticRules: true,
+      changefreq: [
+        { pattern: '/de/blog/', changefreq: 'daily', allLocales: false },
+        { pattern: '/blog/', changefreq: 'hourly' },
+      ],
+    })
+    expect(entryFor(xml, 'https://example.com/de/blog/post/')).toContain('<changefreq>daily</changefreq>')
+    expect(entryFor(xml, 'https://example.com/blog/post/')).toContain('<changefreq>hourly</changefreq>')
+  })
+})

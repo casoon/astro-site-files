@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderSecurityTxt } from './security.js'
+import { auditSecurity } from './audit.js'
 
 describe('renderSecurityTxt', () => {
   it('renders single contact', () => {
@@ -90,5 +91,41 @@ describe('renderSecurityTxt', () => {
 
   it('output ends with a newline', () => {
     expect(renderSecurityTxt({ contact: 'mailto:security@example.com' }).endsWith('\n')).toBe(true)
+  })
+})
+
+describe('auditSecurity', () => {
+  const future = new Date(Date.now() + 86_400_000).toISOString()
+
+  it('flags an expired Expires date', () => {
+    const issues = auditSecurity({
+      contact: 'mailto:security@example.com',
+      expires: '2020-01-01T00:00:00.000Z',
+    })
+    expect(issues.map(i => i.rule)).toContain('security/expired')
+  })
+
+  it('flags an unparseable Expires date', () => {
+    const issues = auditSecurity({ contact: 'mailto:security@example.com', expires: 'next year' })
+    expect(issues.map(i => i.rule)).toContain('security/invalid-expires')
+  })
+
+  it('accepts an Expires date in the future', () => {
+    const issues = auditSecurity({ contact: 'mailto:security@example.com', expires: future })
+    expect(issues.map(i => i.rule)).not.toContain('security/expired')
+    expect(issues.map(i => i.rule)).not.toContain('security/no-expires')
+  })
+
+  it('flags a bare e-mail address as Contact', () => {
+    const issues = auditSecurity({ contact: 'security@example.com', expires: future })
+    expect(issues.map(i => i.rule)).toContain('security/contact-not-a-uri')
+  })
+
+  it('accepts mailto:, https: and tel: contacts', () => {
+    const issues = auditSecurity({
+      contact: ['mailto:a@example.com', 'https://example.com/report', 'tel:+4900000'],
+      expires: future,
+    })
+    expect(issues.map(i => i.rule)).not.toContain('security/contact-not-a-uri')
   })
 })

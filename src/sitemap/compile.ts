@@ -1,4 +1,4 @@
-import type { Changefreq, ResolvedSitemapEntry, SitemapEntry, SitemapOptions } from './types.js'
+import type { Changefreq, I18nOptions, ResolvedSitemapEntry, SitemapEntry, SitemapOptions } from './types.js'
 
 const BUILT_IN_PRIORITY: Array<{ pattern: RegExp; priority: number }> = [
   { pattern: /^\/$/, priority: 1.0 },
@@ -26,22 +26,60 @@ function matchesPattern(urlPath: string, pattern: string | RegExp): boolean {
   return pattern.test(urlPath)
 }
 
-function resolvePriority(urlPath: string, userRules: SitemapOptions['priority']): number {
-  for (const rule of userRules ?? []) {
-    if (matchesPattern(urlPath, rule.pattern)) return rule.priority
+/**
+ * Strips a locale prefix so the built-in depth and pattern rules see the same
+ * path for every translation — otherwise `/de/` would rank a whole level below
+ * `/` purely because of its prefix. User rules still match the real path.
+ */
+function stripLocalePrefix(urlPath: string, i18n: I18nOptions | undefined): string {
+  if (!i18n) return urlPath
+  for (const locale of Object.keys(i18n.locales)) {
+    const prefix = `/${locale}`
+    if (urlPath === prefix || urlPath === `${prefix}/`) return '/'
+    if (urlPath.startsWith(`${prefix}/`)) return urlPath.slice(prefix.length)
   }
-  for (const rule of BUILT_IN_PRIORITY) {
-    if (rule.pattern.test(urlPath)) return rule.priority
-  }
-  return depthPriority(urlPath)
+  return urlPath
 }
 
-function resolveChangefreq(urlPath: string, userRules: SitemapOptions['changefreq']): Changefreq {
-  for (const rule of userRules ?? []) {
-    if (matchesPattern(urlPath, rule.pattern)) return rule.changefreq
+/**
+ * A rule matches the locale-stripped path when it opts in — per rule via
+ * `allLocales`, otherwise via the `localeAgnosticRules` default.
+ */
+function ruleMatches(
+  rule: { pattern: string | RegExp; allLocales?: boolean },
+  urlPath: string,
+  canonicalPath: string,
+  localeAgnostic: boolean,
+): boolean {
+  return matchesPattern((rule.allLocales ?? localeAgnostic) ? canonicalPath : urlPath, rule.pattern)
+}
+
+function resolvePriority(
+  urlPath: string,
+  canonicalPath: string,
+  options: SitemapOptions,
+): number {
+  const localeAgnostic = options.localeAgnosticRules ?? false
+  for (const rule of options.priority ?? []) {
+    if (ruleMatches(rule, urlPath, canonicalPath, localeAgnostic)) return rule.priority
+  }
+  for (const rule of BUILT_IN_PRIORITY) {
+    if (rule.pattern.test(canonicalPath)) return rule.priority
+  }
+  return depthPriority(canonicalPath)
+}
+
+function resolveChangefreq(
+  urlPath: string,
+  canonicalPath: string,
+  options: SitemapOptions,
+): Changefreq {
+  const localeAgnostic = options.localeAgnosticRules ?? false
+  for (const rule of options.changefreq ?? []) {
+    if (ruleMatches(rule, urlPath, canonicalPath, localeAgnostic)) return rule.changefreq
   }
   for (const rule of BUILT_IN_CHANGEFREQ) {
-    if (rule.pattern.test(urlPath)) return rule.changefreq
+    if (rule.pattern.test(canonicalPath)) return rule.changefreq
   }
   return DEFAULT_CHANGEFREQ
 }
@@ -60,11 +98,12 @@ export function resolveEntry(
     loc = base ? `${base}${path}` : path
   }
   const urlPath = base ? loc.replace(base, '') || '/' : loc
+  const canonicalPath = stripLocalePrefix(urlPath, options.i18n)
   return {
     loc,
     lastmod: entry.lastmod ?? TODAY,
-    priority: entry.priority ?? resolvePriority(urlPath, options.priority),
-    changefreq: entry.changefreq ?? resolveChangefreq(urlPath, options.changefreq),
+    priority: entry.priority ?? resolvePriority(urlPath, canonicalPath, options),
+    changefreq: entry.changefreq ?? resolveChangefreq(urlPath, canonicalPath, options),
   }
 }
 

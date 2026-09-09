@@ -229,3 +229,58 @@ describe('RSS items', () => {
     expect(xml).toContain('<![CDATA[Code: a]]]]><![CDATA[>b]]>')
   })
 })
+
+describe('link and guid handling', () => {
+  it('joins a root-relative link without doubling or swallowing the slash', async () => {
+    const xml = await render({
+      title: 'Feed',
+      description: 'Desc',
+      getItems: () => [item({ link: 'blog/no-leading-slash/' })],
+    })
+    expect(xml).toContain('<link>https://example.com/blog/no-leading-slash/</link>')
+  })
+
+  it('keeps an absolute link untouched', async () => {
+    const xml = await render({
+      title: 'Feed',
+      description: 'Desc',
+      getItems: () => [item({ link: 'https://other.example/post/' })],
+    })
+    expect(xml).toContain('<link>https://other.example/post/</link>')
+  })
+
+  it('uses a custom guid and stops calling it a permalink', async () => {
+    const xml = await render({
+      title: 'Feed',
+      description: 'Desc',
+      getItems: () => [item({ guid: 'urn:uuid:9f1c' })],
+    })
+    expect(xml).toContain('<guid isPermaLink="false">urn:uuid:9f1c</guid>')
+  })
+
+  it('defaults the guid to the link as a permalink', async () => {
+    const xml = await render({ title: 'Feed', description: 'Desc', getItems: () => [item()] })
+    expect(xml).toContain('<guid isPermaLink="true">https://example.com/blog/test/</guid>')
+  })
+})
+
+describe('pubDate handling', () => {
+  it('omits pubDate instead of emitting "Invalid Date"', async () => {
+    const xml = await render({
+      title: 'Feed',
+      description: 'Desc',
+      getItems: () => [item({ pubDate: 'not a date' })],
+    })
+    expect(xml).not.toContain('Invalid Date')
+    expect(xml).not.toContain('<pubDate>')
+  })
+
+  it('formats a valid date string as RFC 822', async () => {
+    const xml = await render({
+      title: 'Feed',
+      description: 'Desc',
+      getItems: () => [item({ pubDate: '2026-01-02T00:00:00.000Z' })],
+    })
+    expect(xml).toContain('<pubDate>Fri, 02 Jan 2026 00:00:00 GMT</pubDate>')
+  })
+})

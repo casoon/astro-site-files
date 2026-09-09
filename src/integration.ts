@@ -46,10 +46,35 @@ interface AstroLogger {
   error(message: string): void
 }
 
+interface AstroI18nLocale {
+  path: string
+  codes: string[]
+}
+
 interface AstroConfig {
   site?: string
   base?: string
   build?: { format?: 'file' | 'directory' | 'preserve' }
+  i18n?: {
+    defaultLocale: string
+    locales: Array<string | AstroI18nLocale>
+  }
+}
+
+/**
+ * Astro already knows the locales — reusing them saves duplicating the whole
+ * mapping under `sitemap.i18n`. An explicit `sitemap.i18n` still wins.
+ */
+function i18nFromAstroConfig(astroConfig: AstroConfig | undefined): I18nOptions | undefined {
+  const i18n = astroConfig?.i18n
+  if (!i18n?.locales?.length) return undefined
+  const locales: Record<string, string> = {}
+  for (const locale of i18n.locales) {
+    if (typeof locale === 'string') locales[locale] = locale
+    else if (locale.path && locale.codes?.length) locales[locale.path] = locale.codes[0]!
+  }
+  if (Object.keys(locales).length === 0) return undefined
+  return { defaultLocale: i18n.defaultLocale, locales }
 }
 
 interface AstroIntegration {
@@ -140,47 +165,83 @@ function pageFilePath(outDir: string, urlPath: string): string {
 interface PageInfo {
   lastmod?: string
   isRedirect: boolean
+  noindex: boolean
   changefreq?: Changefreq
   priority?: number
 }
 
 /** One open() per page — mtime, redirect detection and metadata all come from it. */
 async function readPageInfo(outDir: string, urlPath: string): Promise<PageInfo> {
-  const fh = await open(pageFilePath(outDir, urlPath), 'r').catch(() => null)
-  if (!fh) return { isRedirect: false }
-  try {
-    const [stats, content] = await Promise.all([fh.stat(), fh.readFile('utf-8')])
-    const lastmod = stats.mtime.toISOString().split('T')[0]
-    if (content.slice(0, 512).toLowerCase().includes('<meta http-equiv="refresh"')) {
-      return { lastmod, isRedirect: true }
+  const primary = pageFilePath(outDir, urlPath)
+  // A pathname without a trailing slash (a fallback route, say) still maps to a
+  // directory on disk under `build.format: 'directory'` — reading that directory
+  // would throw EISDIR, so fall through to its index.html.
+  for (const path of [primary, join(primary, 'index.html')]) {
+    const fh = await open(path, 'r').catch(() => null)
+    if (!fh) continue
+    try {
+      const stats = await fh.stat()
+      if (stats.isDirectory()) continue
+      const content = await fh.readFile('utf-8')
+      const lastmod = stats.mtime.toISOString().split('T')[0]
+      if (content.slice(0, 512).toLowerCase().includes('<meta http-equiv="refresh"')) {
+        return { lastmod, isRedirect: true, noindex: false }
+      }
+      return {
+        lastmod,
+        isRedirect: false,
+        noindex: hasNoindex(content),
+        ...parseHtmlMetadata(content),
+      }
+    } finally {
+      await fh.close()
     }
-    return { lastmod, isRedirect: false, ...parseHtmlMetadata(content) }
-  } finally {
-    await fh.close()
   }
+  return { isRedirect: false, noindex: false }
+}
+
+/**
+ * A page carrying `<meta name="robots" content="noindex">` must not be submitted
+ * in a sitemap — Search Console reports it as an error. Only the `<head>` counts.
+ */
+function hasNoindex(content: string): boolean {
+  const headEnd = content.search(/<\/head>/i)
+  const head = headEnd === -1 ? content : content.slice(0, headEnd)
+  for (const match of head.matchAll(/<meta\s+([^>]*)>/gi)) {
+    const attrs = match[1]!
+    const name = /name=["']([^"']*)["']/i.exec(attrs)?.[1]?.trim().toLowerCase()
+    if (name !== 'robots' && name !== 'googlebot') continue
+    const directives = /content=["']([^"']*)["']/i.exec(attrs)?.[1]?.toLowerCase() ?? ''
+    if (directives.split(',').some(d => d.trim() === 'noindex' || d.trim() === 'none')) return true
+  }
+  return false
 }
 
 const VALID_CHANGEFREQS = new Set<string>(['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'])
 
 function parseHtmlMetadata(content: string): { changefreq?: Changefreq; priority?: number } {
-  // Capture the full opening tag of a JSON-LD script to find data-sitemap-* attributes
-  // regardless of attribute order
-  const jsonLdMatch = /<script\s+([^>]*type=["']application\/ld\+json["'][^>]*)>/i.exec(content)
-  if (!jsonLdMatch) return {}
-
-  const attrs = jsonLdMatch[1]!
-  const changefreqMatch = /data-sitemap-changefreq=["'](.*?)["']/i.exec(attrs)
-  const priorityMatch = /data-sitemap-priority=["'](.*?)["']/i.exec(attrs)
-
   const res: { changefreq?: Changefreq; priority?: number } = {}
-  if (changefreqMatch) {
-    const val = changefreqMatch[1]!.toLowerCase()
-    if (VALID_CHANGEFREQS.has(val)) res.changefreq = val as Changefreq
+
+  // Capture the full opening tag of every JSON-LD script to find data-sitemap-*
+  // attributes regardless of attribute order. Pages routinely emit more than one
+  // block (Organization from the layout, Article from the page) — the annotated
+  // one is not necessarily the first.
+  for (const match of content.matchAll(/<script\s+([^>]*type=["']application\/ld\+json["'][^>]*)>/gi)) {
+    const attrs = match[1]!
+    const changefreqMatch = /data-sitemap-changefreq=["'](.*?)["']/i.exec(attrs)
+    const priorityMatch = /data-sitemap-priority=["'](.*?)["']/i.exec(attrs)
+
+    if (changefreqMatch && res.changefreq === undefined) {
+      const val = changefreqMatch[1]!.toLowerCase()
+      if (VALID_CHANGEFREQS.has(val)) res.changefreq = val as Changefreq
+    }
+    if (priorityMatch && res.priority === undefined) {
+      const val = parseFloat(priorityMatch[1]!)
+      if (!isNaN(val)) res.priority = val
+    }
+    if (res.changefreq !== undefined && res.priority !== undefined) break
   }
-  if (priorityMatch) {
-    const val = parseFloat(priorityMatch[1]!)
-    if (!isNaN(val)) res.priority = val
-  }
+
   return res
 }
 
@@ -241,6 +302,7 @@ export default function siteFiles(options: SiteFilesOptions = {}): AstroIntegrat
           : undefined
 
         await writeRobots(outDir, options, astroConfig, logger, sitemapFilename)
+        await writeRss(outDir, options, astroConfig, logger)
         await writeLlms(outDir, options, logger)
         await writeSecurity(outDir, options, logger)
         await writeHumans(outDir, options, logger)
@@ -357,12 +419,18 @@ async function collectStaticEntries(
 
   const infos = await mapLimit(candidates, READ_CONCURRENCY, c => readPageInfo(outDir, c.urlPath))
 
+  const excludeNoindex = sitemapOpts.excludeNoindex !== false
   const entries: SitemapEntry[] = []
   const redirectSkipped: string[] = []
+  const noindexSkipped: string[] = []
   for (const [i, candidate] of candidates.entries()) {
     const info = infos[i]!
     if (info.isRedirect) {
       redirectSkipped.push(candidate.urlPath)
+      continue
+    }
+    if (info.noindex && excludeNoindex) {
+      noindexSkipped.push(candidate.urlPath)
       continue
     }
     entries.push({
@@ -375,6 +443,7 @@ async function collectStaticEntries(
 
   logSkipped(builtInSkipped, 'excluded by built-in rules', logger)
   logSkipped(redirectSkipped, 'excluded as meta-refresh redirect pages', logger)
+  logSkipped(noindexSkipped, 'excluded because of <meta name="robots" content="noindex">', logger)
   return entries
 }
 
@@ -440,13 +509,23 @@ async function writeSitemapOutput(
   return 'sitemap-index.xml'
 }
 
-async function writeSitemapRss(
+async function writeRss(
   outDir: string,
-  rss: NonNullable<SitemapOptions['rss']>,
-  effectiveSiteUrl: string,
-  siteUrl: string | undefined,
+  options: SiteFilesOptions,
+  astroConfig: AstroConfig | undefined,
   logger: AstroLogger,
 ): Promise<void> {
+  const sitemapOpts: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
+  // `sitemap.rss` is the deprecated home for this — a feed is its own resource
+  // and must keep working when the sitemap itself is switched off.
+  const rss = options.rss ?? sitemapOpts.rss
+  if (!rss) return
+
+  const siteUrl = (
+    sitemapOpts.siteUrl ?? (astroConfig?.site ? String(astroConfig.site) : undefined)
+  )?.replace(/\/$/, '')
+  const effectiveSiteUrl = buildSiteWithBase(siteUrl, astroConfig?.base)
+
   const rssFilename = rss.filename ?? 'rss.xml'
   const rssSiteUrl = effectiveSiteUrl || siteUrl || ''
   const rssItems = await rss.getItems(rssSiteUrl)
@@ -472,7 +551,11 @@ async function writeSitemap(
   fallbackPathnames: string[],
   logger: AstroLogger,
 ): Promise<string> {
-  const sitemapOpts: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
+  const configured: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
+  const sitemapOpts: SitemapOptions = {
+    ...configured,
+    i18n: configured.i18n ?? i18nFromAstroConfig(astroConfig),
+  }
 
   const siteUrl = (
     sitemapOpts.siteUrl ?? (astroConfig?.site ? String(astroConfig.site) : undefined)
@@ -513,11 +596,5 @@ async function writeSitemap(
     logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
   }
 
-  const sitemapFilename = await writeSitemapOutput(outDir, entries, sitemapOpts, effectiveSiteUrl, logger)
-
-  if (sitemapOpts.rss) {
-    await writeSitemapRss(outDir, sitemapOpts.rss, effectiveSiteUrl, siteUrl, logger)
-  }
-
-  return sitemapFilename
+  return writeSitemapOutput(outDir, entries, sitemapOpts, effectiveSiteUrl, logger)
 }

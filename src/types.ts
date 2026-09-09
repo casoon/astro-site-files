@@ -128,6 +128,8 @@ export interface SiteFilesOptions {
   llms?: LlmsOptions | boolean
   /** sitemap.xml — enabled by default, generated directly in astro:build:done */
   sitemap?: SitemapOptions | boolean
+  /** RSS 2.0 feed — disabled unless configured. Independent of `sitemap`. */
+  rss?: import('./sitemap/types.js').RssConfig
   /** /.well-known/security.txt — disabled unless configured with { contact } */
   security?: SecurityOptions | boolean
   /** humans.txt — disabled unless configured */

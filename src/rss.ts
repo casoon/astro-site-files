@@ -33,20 +33,30 @@ function cdata(str: string): string {
   return `<![CDATA[${str.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`
 }
 
-function toRfcDate(date: Date | string): string {
+/** Returns undefined for unparseable input — an `Invalid Date` string breaks every feed reader. */
+function toRfcDate(date: Date | string): string | undefined {
   const d = date instanceof Date ? date : new Date(date)
-  return d.toUTCString()
+  return Number.isNaN(d.getTime()) ? undefined : d.toUTCString()
+}
+
+/** Joins without producing `https://example.comblog/` or a doubled slash. */
+function resolveLink(siteUrl: string, link: string): string {
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(link)) return link
+  return `${siteUrl.replace(/\/$/, '')}/${link.replace(/^\//, '')}`
 }
 
 function renderItem(item: RssItem, siteUrl: string): string {
-  const link = item.link.startsWith('http') ? item.link : `${siteUrl}${item.link}`
+  const link = resolveLink(siteUrl, item.link)
+  const guid = item.guid ?? link
+  const isPermaLink = item.guidIsPermaLink ?? item.guid === undefined
+  const pubDate = toRfcDate(item.pubDate)
   const parts: string[] = [
     '  <item>',
     `    <title>${cdata(item.title)}</title>`,
     item.description ? `    <description>${cdata(item.description)}</description>` : '',
     `    <link>${escapeXml(link)}</link>`,
-    `    <guid isPermaLink="true">${escapeXml(link)}</guid>`,
-    `    <pubDate>${toRfcDate(item.pubDate)}</pubDate>`,
+    `    <guid isPermaLink="${isPermaLink}">${escapeXml(guid)}</guid>`,
+    pubDate ? `    <pubDate>${pubDate}</pubDate>` : '',
     item.author ? `    <author>${escapeXml(item.author)}</author>` : '',
     ...(item.categories ?? []).map(c => `    <category>${escapeXml(c)}</category>`),
     item.customData ? item.customData.split('\n').map(l => `    ${l}`).join('\n') : '',
