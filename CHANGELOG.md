@@ -19,7 +19,7 @@ These take effect without any config change.
 - Built-in priority and changefreq defaults ignore locale prefixes: `/de/` is scored like `/`
   instead of one level below it, and `/de/blog/x/` like `/blog/x/`.
 - A crawler with its own `robots.txt` group now also receives the global `allow` / `disallow` /
-  `crawlDelay` rules. Per [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) a bot obeys only its
+  `crawlDelay` rules. Per RFC 9309 a bot obeys only its
   most specific matching group, so a `Disallow: /admin/` under `User-agent: *` previously did not
   apply to Googlebot at all. Blocked bots keep a bare `Disallow: /` — a global `Allow:` must not
   punch a hole into a bot that was deliberately blocked outright.
@@ -35,7 +35,7 @@ These take effect without any config change.
   `changefreq` rule can cover every translation — or opt back out to target one locale.
 - `sitemap.excludeNoindex` to keep `noindex` pages in the sitemap.
 - Audit rules `security/expired`, `security/invalid-expires` and `security/contact-not-a-uri`
-  for [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) conformance.
+  for RFC 9116 conformance.
 
 ### Fixed
 
