@@ -1,0 +1,52 @@
+---
+title: Installation
+description: Add the package to an Astro project. It has no runtime dependencies.
+order: 1
+---
+
+<Tabs
+  label="Package manager"
+  tabs={[
+    { id: 'npm', label: 'npm' },
+    { id: 'pnpm', label: 'pnpm' },
+  ]}
+>
+<div slot="npm">
+
+```sh
+npm install @casoon/astro-site-files
+```
+
+</div>
+<div slot="pnpm">
+
+```sh
+pnpm add @casoon/astro-site-files
+```
+
+</div>
+</Tabs>
+
+## Requirements
+
+| Runtime | Minimum | Notes |
+| --- | --- | --- |
+| Node.js | `22.12.0` | Same floor as Astro 6. |
+| Astro | `6.0.0` | Astro 7 included. Optional peer dependency: the renderer functions work without Astro. |
+
+The package is ESM only and ships its own TypeScript declarations. Besides the main entry point
+there is one sub-path, `@casoon/astro-site-files/rss`, for serving a feed from an API route.
+
+## Replaced packages
+
+This integration replaces `@casoon/astro-crawler-policy` (robots.txt and llms.txt) and
+`@casoon/astro-sitemap` (sitemap.xml and rss.xml). Both are no longer actively maintained.
+
+<Callout type="caution">
+  Upgrading from 0.4 changes output without any config change: `noindex` pages leave the sitemap,
+  hreflang alternates follow Astro's `i18n` config, locale prefixes no longer lower a page's
+  priority, and bots with their own robots.txt group inherit the global rules. Read the
+  [changelog](../../../changelog/) before upgrading.
+</Callout>
+
+Next: [generate the first files](../quickstart/).

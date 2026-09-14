@@ -2,6 +2,8 @@
 
 Astro integration that generates all standard site meta-files from typed configuration at build time.
 
+**Website and documentation:** [casoon.github.io/astro-site-files](https://casoon.github.io/astro-site-files/)
+
 ## What it does
 
 - Generates `robots.txt` — crawl rules with per-agent overrides and automatic sitemap reference
