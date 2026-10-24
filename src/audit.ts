@@ -1,4 +1,5 @@
 import type { AstroLogger } from './astro.js'
+import { isRelativeLlmsUrl } from './llms.js'
 import type { HumansOptions, LlmsOptions, RobotsOptions, SecurityOptions } from './types.js'
 
 export interface AuditIssue {
@@ -69,7 +70,7 @@ export function auditRobots(options: RobotsOptions): AuditIssue[] {
 
 // ── llms.txt ──────────────────────────────────────────────────────────────────
 
-export function auditLlms(options: LlmsOptions): AuditIssue[] {
+export function auditLlms(options: LlmsOptions, siteUrl?: string): AuditIssue[] {
   const issues: AuditIssue[] = []
 
   if (!options.description) {
@@ -99,6 +100,21 @@ export function auditLlms(options: LlmsOptions): AuditIssue[] {
         rule: 'llms/sections-without-links',
         message: 'llms.txt sections have no links',
         help: 'Add `links` entries to your sections pointing to canonical pages on your site.',
+      })
+    }
+  }
+
+  if (!siteUrl) {
+    const relative = (options.sections ?? [])
+      .flatMap(s => s.links ?? [])
+      .map(l => l.url)
+      .filter(isRelativeLlmsUrl)
+    if (relative.length > 0) {
+      issues.push({
+        level: 'warn',
+        rule: 'llms/relative-links',
+        message: `llms.txt keeps ${relative.length} relative link${relative.length === 1 ? '' : 's'}: ${relative.join(', ')}`,
+        help: 'Set Astro\'s `site` (or `sitemap.siteUrl`) so the integration can prefix them, or write absolute URLs — llms.txt is read without page context, so a relative link resolves nowhere.',
       })
     }
   }

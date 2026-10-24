@@ -61,7 +61,7 @@ export default function siteFiles(options: SiteFilesOptions = {}): AstroIntegrat
 
         await writeRobots(outDir, options, astroConfig, logger, sitemapFilename)
         await writeRss(outDir, options, astroConfig, logger)
-        await writeLlms(outDir, options, logger)
+        await writeLlms(outDir, options, astroConfig, logger)
         await writeSecurity(outDir, options, logger)
         await writeHumans(outDir, options, logger)
       },
@@ -96,6 +96,7 @@ async function writeRobots(
 async function writeLlms(
   outDir: string,
   options: SiteFilesOptions,
+  astroConfig: AstroConfig | undefined,
   logger: AstroLogger,
 ): Promise<void> {
   if (!options.llms) return
@@ -111,9 +112,16 @@ async function writeLlms(
   const resolvedOpts: LlmsOptions = sourceSections.length
     ? { ...llmsOpts, sections: [...(llmsOpts.sections ?? []), ...sourceSections] }
     : llmsOpts
-  await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(resolvedOpts), 'utf-8')
+  // The links point at pages, like the sitemap's `<loc>` — so the same origin
+  // resolution applies, `sitemap.siteUrl` included.
+  const sitemapOpts: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
+  // Without a host there is nothing to resolve against — `base` alone would
+  // leave the link relative, so it stays untouched and the audit says so.
+  const { siteUrl, effectiveSiteUrl } = resolveSiteUrls(sitemapOpts.siteUrl, astroConfig)
+  const linkBase = siteUrl ? effectiveSiteUrl : undefined
+  await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(resolvedOpts, linkBase), 'utf-8')
   logger.info('llms.txt generated')
-  reportIssues(logger, auditLlms(resolvedOpts), options.audit)
+  reportIssues(logger, auditLlms(resolvedOpts, linkBase), options.audit)
 }
 
 async function writeSecurity(

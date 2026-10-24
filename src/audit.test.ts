@@ -46,13 +46,33 @@ describe('auditLlms', () => {
       title: 'T',
       description: 'A site.',
       sections: [{ title: 'S', links: [{ title: 'L', url: '/l' }] }],
-    })
+    }, 'https://example.com')
     expect(issues).toHaveLength(0)
   })
 
   it('does not warn about missing sections when sources are configured', () => {
     const issues = auditLlms({ title: 'T', sources: [async () => ({ title: 'S' })] })
     expect(issues.every(i => i.rule !== 'llms/no-sections')).toBe(true)
+  })
+
+  it('warns about relative links when no site URL is known', () => {
+    const issues = auditLlms({
+      title: 'T',
+      description: 'A site.',
+      sections: [{ title: 'S', links: [{ title: 'L', url: '/lohnmosterei/' }] }],
+    })
+    const issue = issues.find(i => i.rule === 'llms/relative-links')
+    expect(issue?.level).toBe('warn')
+    expect(issue?.message).toContain('/lohnmosterei/')
+  })
+
+  it('does not warn about absolute links when no site URL is known', () => {
+    const issues = auditLlms({
+      title: 'T',
+      description: 'A site.',
+      sections: [{ title: 'S', links: [{ title: 'L', url: 'https://example.com/l' }] }],
+    })
+    expect(issues.every(i => i.rule !== 'llms/relative-links')).toBe(true)
   })
 })
 

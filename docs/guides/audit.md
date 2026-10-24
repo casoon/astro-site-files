@@ -22,6 +22,7 @@ That line is from this site's own build: its security.txt has no policy page.
 | `llms/no-description` | info | No `description` |
 | `llms/no-sections` | info | Neither `sections` nor `sources` |
 | `llms/sections-without-links` | info | Sections without any `links`, and no `sources` |
+| `llms/relative-links` | warn | Relative link URLs with no `site` or `sitemap.siteUrl` to resolve them against |
 | `security/contact-not-a-uri` | error | A `contact` value has no URI scheme |
 | `security/no-expires` | warn | No `expires` |
 | `security/invalid-expires` | error | `expires` is not a parseable date |

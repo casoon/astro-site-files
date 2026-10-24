@@ -60,4 +60,53 @@ describe('renderLlmsTxt', () => {
   it('output ends with a newline', () => {
     expect(renderLlmsTxt({ title: 'T' }).endsWith('\n')).toBe(true)
   })
+
+  it('resolves a root-relative link against the site URL', () => {
+    const result = renderLlmsTxt({
+      title: 'T',
+      sections: [{ title: 'S', links: [{ title: 'Lohnmosterei', url: '/lohnmosterei/' }] }],
+    }, 'https://example.com')
+    expect(result).toContain('- [Lohnmosterei](https://example.com/lohnmosterei/)')
+  })
+
+  it('keeps the base path of the site URL', () => {
+    const result = renderLlmsTxt({
+      title: 'T',
+      sections: [{ title: 'S', links: [{ title: 'Docs', url: '/docs/' }] }],
+    }, 'https://example.com/app')
+    expect(result).toContain('(https://example.com/app/docs/)')
+  })
+
+  it('adds the missing slash for a link without a leading slash', () => {
+    const result = renderLlmsTxt({
+      title: 'T',
+      sections: [{ title: 'S', links: [{ title: 'Docs', url: 'docs/' }] }],
+    }, 'https://example.com/')
+    expect(result).toContain('(https://example.com/docs/)')
+  })
+
+  it('leaves links that already carry a scheme untouched', () => {
+    const result = renderLlmsTxt({
+      title: 'T',
+      sections: [{
+        title: 'S',
+        links: [
+          { title: 'Docs', url: 'https://other.example/docs/' },
+          { title: 'Mail', url: 'mailto:info@example.com' },
+          { title: 'CDN', url: '//cdn.example.com/x' },
+        ],
+      }],
+    }, 'https://example.com')
+    expect(result).toContain('(https://other.example/docs/)')
+    expect(result).toContain('(mailto:info@example.com)')
+    expect(result).toContain('(//cdn.example.com/x)')
+  })
+
+  it('leaves relative links as given when no site URL is known', () => {
+    const result = renderLlmsTxt({
+      title: 'T',
+      sections: [{ title: 'S', links: [{ title: 'Home', url: '/' }] }],
+    })
+    expect(result).toContain('- [Home](/)')
+  })
 })

@@ -15,7 +15,7 @@ API site. Package page: [npm](https://www.npmjs.com/package/@casoon/astro-site-f
 | --- | --- | --- |
 | `default`, `siteFiles` | function | The Astro integration: `siteFiles(options?: SiteFilesOptions)` |
 | `renderRobotsTxt` | function | `(options, siteUrl?, sitemapFilename?) => string` |
-| `renderLlmsTxt` | function | `(options) => string`; `sources` are not resolved here |
+| `renderLlmsTxt` | function | `(options, siteUrl?) => string`; `siteUrl` resolves relative link URLs, `sources` are not resolved here |
 | `renderSecurityTxt` | function | `(options) => string` |
 | `renderHumansTxt` | function | `(options) => string` |
 | `renderSitemapXml` | function | `(entries, comment?) => string` |

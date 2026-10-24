@@ -360,6 +360,84 @@ describe('llms sources', () => {
   })
 })
 
+describe('llms link resolution', () => {
+  it('resolves relative links against site and base', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: false,
+      llms: {
+        title: 'My Site',
+        description: 'A site.',
+        sections: [{ title: 'Pages', links: [{ title: 'Lohnmosterei', url: '/lohnmosterei/' }] }],
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({
+      config: { site: 'https://example.com', base: '/app/' },
+    })
+    await getHook(integration, 'astro:build:done')({
+      pages: [],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const llms = await readFile(join(outDir, 'llms.txt'), 'utf-8')
+    expect(llms).toContain('[Lohnmosterei](https://example.com/app/lohnmosterei/)')
+    expect(logger.warn.every(m => !m.includes('llms/relative-links'))).toBe(true)
+  })
+
+  it('uses sitemap.siteUrl when site is unset', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: { siteUrl: 'https://cdn.example.com' },
+      llms: {
+        title: 'My Site',
+        description: 'A site.',
+        sections: [{ title: 'Pages', links: [{ title: 'Home', url: '/' }] }],
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: {} })
+    await getHook(integration, 'astro:build:done')({
+      pages: [],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const llms = await readFile(join(outDir, 'llms.txt'), 'utf-8')
+    expect(llms).toContain('[Home](https://cdn.example.com/)')
+  })
+
+  it('warns and keeps the link when neither site nor sitemap.siteUrl is set', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: false,
+      llms: {
+        title: 'My Site',
+        description: 'A site.',
+        sections: [{ title: 'Pages', links: [{ title: 'Home', url: '/' }] }],
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: { base: '/app/' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const llms = await readFile(join(outDir, 'llms.txt'), 'utf-8')
+    expect(llms).toContain('[Home](/)')
+    expect(logger.warn.some(m => m.includes('llms/relative-links'))).toBe(true)
+  })
+})
+
 describe('robots.txt / sitemap filename coupling', () => {
   it('references sitemap-index.xml in robots.txt when the index mode is used', async () => {
     const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))

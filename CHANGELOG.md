@@ -7,6 +7,20 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+### Added
+
+- **Audit:** rule `llms/relative-links` (`warn`) for relative link URLs that cannot be resolved
+  because no site URL is configured. Details:
+  [Rules](https://casoon.github.io/astro-site-files/docs/guides/audit/#rules).
+
+### Fixed
+
+- **llms.txt:** relative link URLs are resolved against `site` + `base` (`sitemap.siteUrl` wins over
+  `site`, as for the sitemap), so `/lohnmosterei/` is written as
+  `https://example.com/lohnmosterei/`. Absolute URLs, `mailto:`/`tel:` and protocol-relative links
+  stay as given. Details:
+  [llms.txt](https://casoon.github.io/astro-site-files/docs/configuration/llms-txt/).
+
 ## [0.6.0] - 2026-10-24
 
 ### Added

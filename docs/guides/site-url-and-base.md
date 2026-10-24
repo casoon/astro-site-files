@@ -13,8 +13,9 @@ The integration builds its absolute URLs from Astro's own options:
   `Sitemap:` line in `robots.txt` keeps `site`, because it has to point at the file on the origin
   that serves the robots.txt — `sitemap.siteUrl` is used there only when `site` is unset.
 - `robots.sitemap` as a string replaces the whole Sitemap URL.
-- `llms.txt` links and all `security.txt` and `humans.txt` values are written exactly as
-  configured.
+- `llms.txt` links follow the sitemap: a relative URL gets `site` (or `sitemap.siteUrl`) + `base`
+  in front of it, a URL with a scheme is written as given. All `security.txt` and `humans.txt`
+  values are written exactly as configured.
 
 ## Keep the path out of `site`
 

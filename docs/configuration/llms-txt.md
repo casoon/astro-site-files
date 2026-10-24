@@ -41,8 +41,14 @@ type LlmsSource = () => LlmsSection | Promise<LlmsSection>
 | `sections` | `## title` with a list of `[title](url): description` |
 | `sources` | Sections from code, appended after `sections` |
 
-Link URLs are written as given. Use absolute URLs if the file is read outside the site; the
-integration does not prefix `site` or `base` here.
+Relative link URLs are resolved against the site URL: `/lohnmosterei/` becomes
+`https://example.com/lohnmosterei/`. As for the sitemap, `sitemap.siteUrl` replaces Astro's `site`
+and `base` is appended — see [Site URL and base path](../../guides/site-url-and-base/). URLs that
+already carry a scheme (`https:`, `mailto:`, `tel:`) and protocol-relative URLs (`//host/path`) are
+written as given.
+
+Without a site URL the link stays relative and the audit reports `llms/relative-links`. llms.txt is
+read without page context, so a relative link resolves nowhere.
 
 ## Example
 
@@ -108,5 +114,5 @@ siteFiles({
 
 ## Audit hints
 
-`llms/no-description`, `llms/no-sections` and `llms/sections-without-links` (all `info`). See
-[build-time audit](../../guides/audit/).
+`llms/no-description`, `llms/no-sections` and `llms/sections-without-links` (all `info`), plus
+`llms/relative-links` (`warn`). See [build-time audit](../../guides/audit/).
