@@ -147,9 +147,11 @@ files.
 | Colour field | `tone="invert"` on any layout | `Terminal`, or whatever the project shows |
 | Editorial | `layout="editorial"` | `FileSet view="rail"` — names and one line each |
 
-The stack layout reads as a pipeline: the `source` slot (usually a `CodeBlock` with the
-configuration), the `command` pill, then the output. Without a `source` slot the band is just
-the output, full width. Below 900 px the three parts stack and the arrow turns down.
+The stack layout reads as a pipeline from top to bottom: the `source` slot (usually a
+`CodeBlock` with the configuration), the `command` pill, then the output — each over the full
+width of the container. Side by side the three do not fit inside `--max`: the source is cut off
+mid-line and the file names wrap to a second row. Without a `source` slot the band is just the
+output.
 
 `FileSet` takes `files` — `id`, `name` and optional `path`, `size`, `note` — and one named slot
 per `id` holding that file's content, the same way `Tabs` does. The `rail` view needs no slots.
