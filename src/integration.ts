@@ -1,266 +1,24 @@
-import { mkdir, open, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { deduplicateEntries, resolveEntry } from './sitemap/compile.js'
-import { renderSitemapIndex, renderSitemapXml } from './sitemap/render.js'
-import { auditSitemap } from './sitemap/audit.js'
+import {
+  type AstroConfig,
+  type AstroIntegration,
+  type AstroLogger,
+  type RouteData,
+  PLUGIN,
+  buildSiteWithBase,
+  resolveSiteUrls,
+} from './astro.js'
+import { auditHumans, auditLlms, auditRobots, auditSecurity, reportIssues } from './audit.js'
+import { writeSitemap } from './sitemap/build.js'
 import { renderRssFeed } from './rss.js'
-import type {
-  Changefreq,
-  HreflangLink,
-  I18nOptions,
-  ResolvedSitemapEntry,
-  SitemapEntry,
-  SitemapOptions,
-} from './sitemap/types.js'
+import type { SitemapOptions } from './sitemap/types.js'
 import type { HumansOptions, LlmsOptions, LlmsSection, RobotsOptions, SiteFilesOptions } from './types.js'
 import { renderRobotsTxt } from './robots.js'
 import { renderLlmsTxt } from './llms.js'
 import { renderSecurityTxt } from './security.js'
 import { renderHumansTxt } from './humans.js'
-import { type AuditIssue, auditHumans, auditLlms, auditRobots, auditSecurity, filterIssues } from './audit.js'
-
-const TODAY = new Date().toISOString().split('T')[0]!
-const PLUGIN = '@casoon/astro-site-files'
-
-// Only structurally unambiguous paths belong here: generated site files, error
-// pages and Astro internals. Path segments that merely *look* non-content
-// (`/api/`, `/landing/`, `/drafts/`) are left to the user's `exclude`/`filter`,
-// because a docs or marketing site can serve real pages under them.
-const BUILT_IN_SKIP: RegExp[] = [
-  /^\/sitemap(-index)?\.xml$/,
-  /^\/robots\.txt$/,
-  /^\/llms\.txt$/,
-  /^\/rss\.xml$/,
-  /^\/feed\.xml$/,
-  // Anchored: `/blog/404-error-pages-guide/` is a content page, not an error page.
-  /\/(404|500)(\.html)?\/?$/,
-  /^\/_/,
-]
-
-// ── Astro hook interfaces ─────────────────────────────────────────────────────
-
-interface AstroLogger {
-  info(message: string): void
-  warn(message: string): void
-  error(message: string): void
-}
-
-interface AstroI18nLocale {
-  path: string
-  codes: string[]
-}
-
-interface AstroConfig {
-  site?: string
-  base?: string
-  build?: { format?: 'file' | 'directory' | 'preserve' }
-  i18n?: {
-    defaultLocale: string
-    locales: Array<string | AstroI18nLocale>
-  }
-}
-
-/**
- * Astro already knows the locales — reusing them saves duplicating the whole
- * mapping under `sitemap.i18n`. An explicit `sitemap.i18n` still wins.
- */
-function i18nFromAstroConfig(astroConfig: AstroConfig | undefined): I18nOptions | undefined {
-  const i18n = astroConfig?.i18n
-  if (!i18n?.locales?.length) return undefined
-  const locales: Record<string, string> = {}
-  for (const locale of i18n.locales) {
-    if (typeof locale === 'string') locales[locale] = locale
-    else if (locale.path && locale.codes?.length) locales[locale.path] = locale.codes[0]!
-  }
-  if (Object.keys(locales).length === 0) return undefined
-  return { defaultLocale: i18n.defaultLocale, locales }
-}
-
-interface AstroIntegration {
-  name: string
-  hooks: Record<string, unknown>
-}
-
-interface RouteData {
-  pathname?: string
-  type: string
-  fallbackRoutes: RouteData[]
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function buildSiteWithBase(siteUrl: string | undefined, base: string | undefined): string {
-  const normalizedBase = (!base || base === '/') ? '' : '/' + base.replace(/^\/|\/$/g, '')
-  return (siteUrl?.replace(/\/$/, '') ?? '') + normalizedBase
-}
-
-type SkipReason = 'built-in' | 'exclude' | 'filter'
-
-function skipReason(
-  urlPath: string,
-  userExcludes: (string | RegExp)[],
-  userFilter?: (url: string) => boolean,
-  fullUrl?: string,
-): SkipReason | undefined {
-  if (BUILT_IN_SKIP.some(p => p.test(urlPath))) return 'built-in'
-  if (userExcludes.some(p =>
-    typeof p === 'string'
-      ? urlPath === p || urlPath.startsWith(p)
-      : p.test(urlPath),
-  )) return 'exclude'
-  if (userFilter && fullUrl && !userFilter(fullUrl)) return 'filter'
-  return undefined
-}
-
-function buildI18nLinks(
-  entries: ResolvedSitemapEntry[],
-  i18n: I18nOptions,
-  siteUrl: string,
-): ResolvedSitemapEntry[] {
-  const { defaultLocale, locales } = i18n
-  const localeKeys = Object.keys(locales)
-  const base = siteUrl.replace(/\/$/, '')
-
-  function getCanonicalInfo(fullUrl: string): { canonical: string; locale: string } {
-    const path = fullUrl.startsWith(base) ? fullUrl.slice(base.length) : fullUrl
-    const normalized = path.startsWith('/') ? path : `/${path}`
-    for (const locale of localeKeys) {
-      const prefix = `/${locale}`
-      if (normalized === prefix || normalized.startsWith(`${prefix}/`)) {
-        return { canonical: normalized.slice(prefix.length) || '/', locale }
-      }
-    }
-    return { canonical: normalized, locale: defaultLocale }
-  }
-
-  const groups = new Map<string, Array<{ locale: string; entry: ResolvedSitemapEntry }>>()
-  for (const entry of entries) {
-    const { canonical, locale } = getCanonicalInfo(entry.loc)
-    if (!groups.has(canonical)) groups.set(canonical, [])
-    groups.get(canonical)!.push({ locale, entry })
-  }
-
-  return entries.map(entry => {
-    const { canonical } = getCanonicalInfo(entry.loc)
-    const group = groups.get(canonical) ?? []
-    if (group.length <= 1) return entry
-    const links: HreflangLink[] = group.map(({ locale, entry: e }) => ({
-      hreflang: locales[locale] ?? locale,
-      href: e.loc,
-    }))
-    // x-default tells search engines which variant to serve for unmatched locales.
-    const fallback = group.find(g => g.locale === defaultLocale)
-    if (fallback) links.push({ hreflang: 'x-default', href: fallback.entry.loc })
-    return { ...entry, links }
-  })
-}
-
-function pageFilePath(outDir: string, urlPath: string): string {
-  return urlPath === '/' || urlPath.endsWith('/')
-    ? join(outDir, urlPath, 'index.html')
-    : join(outDir, urlPath)
-}
-
-interface PageInfo {
-  lastmod?: string
-  isRedirect: boolean
-  noindex: boolean
-  changefreq?: Changefreq
-  priority?: number
-}
-
-/** One open() per page — mtime, redirect detection and metadata all come from it. */
-async function readPageInfo(outDir: string, urlPath: string): Promise<PageInfo> {
-  const primary = pageFilePath(outDir, urlPath)
-  // A pathname without a trailing slash (a fallback route, say) still maps to a
-  // directory on disk under `build.format: 'directory'` — reading that directory
-  // would throw EISDIR, so fall through to its index.html.
-  for (const path of [primary, join(primary, 'index.html')]) {
-    const fh = await open(path, 'r').catch(() => null)
-    if (!fh) continue
-    try {
-      const stats = await fh.stat()
-      if (stats.isDirectory()) continue
-      const content = await fh.readFile('utf-8')
-      const lastmod = stats.mtime.toISOString().split('T')[0]
-      if (content.slice(0, 512).toLowerCase().includes('<meta http-equiv="refresh"')) {
-        return { lastmod, isRedirect: true, noindex: false }
-      }
-      return {
-        lastmod,
-        isRedirect: false,
-        noindex: hasNoindex(content),
-        ...parseHtmlMetadata(content),
-      }
-    } finally {
-      await fh.close()
-    }
-  }
-  return { isRedirect: false, noindex: false }
-}
-
-/**
- * A page carrying `<meta name="robots" content="noindex">` must not be submitted
- * in a sitemap — Search Console reports it as an error. Only the `<head>` counts.
- */
-function hasNoindex(content: string): boolean {
-  const headEnd = content.search(/<\/head>/i)
-  const head = headEnd === -1 ? content : content.slice(0, headEnd)
-  for (const match of head.matchAll(/<meta\s+([^>]*)>/gi)) {
-    const attrs = match[1]!
-    const name = /name=["']([^"']*)["']/i.exec(attrs)?.[1]?.trim().toLowerCase()
-    if (name !== 'robots' && name !== 'googlebot') continue
-    const directives = /content=["']([^"']*)["']/i.exec(attrs)?.[1]?.toLowerCase() ?? ''
-    if (directives.split(',').some(d => d.trim() === 'noindex' || d.trim() === 'none')) return true
-  }
-  return false
-}
-
-const VALID_CHANGEFREQS = new Set<string>(['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never'])
-
-function parseHtmlMetadata(content: string): { changefreq?: Changefreq; priority?: number } {
-  const res: { changefreq?: Changefreq; priority?: number } = {}
-
-  // Capture the full opening tag of every JSON-LD script to find data-sitemap-*
-  // attributes regardless of attribute order. Pages routinely emit more than one
-  // block (Organization from the layout, Article from the page) — the annotated
-  // one is not necessarily the first.
-  for (const match of content.matchAll(/<script\s+([^>]*type=["']application\/ld\+json["'][^>]*)>/gi)) {
-    const attrs = match[1]!
-    const changefreqMatch = /data-sitemap-changefreq=["'](.*?)["']/i.exec(attrs)
-    const priorityMatch = /data-sitemap-priority=["'](.*?)["']/i.exec(attrs)
-
-    if (changefreqMatch && res.changefreq === undefined) {
-      const val = changefreqMatch[1]!.toLowerCase()
-      if (VALID_CHANGEFREQS.has(val)) res.changefreq = val as Changefreq
-    }
-    if (priorityMatch && res.priority === undefined) {
-      const val = parseFloat(priorityMatch[1]!)
-      if (!isNaN(val)) res.priority = val
-    }
-    if (res.changefreq !== undefined && res.priority !== undefined) break
-  }
-
-  return res
-}
-
-const READ_CONCURRENCY = 16
-
-/** Bounded-concurrency map that preserves input order. */
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let next = 0
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next++
-      results[index] = await fn(items[index]!)
-    }
-  })
-  await Promise.all(workers)
-  return results
-}
-
 
 // ── Integration ───────────────────────────────────────────────────────────────
 
@@ -322,12 +80,17 @@ async function writeRobots(
 ): Promise<void> {
   if (options.robots === false) return
   const robotsOpts: RobotsOptions = typeof options.robots === 'object' ? options.robots : {}
-  const siteUrl = astroConfig?.site ? buildSiteWithBase(String(astroConfig.site), astroConfig.base) : undefined
+  // Deliberately not `resolveSiteUrls`: the `Sitemap:` line points at the file
+  // on the origin robots.txt itself is served from, so Astro's `site` wins over
+  // `sitemap.siteUrl`. The fallback only covers an unset `site` — a relative
+  // Sitemap URL is not valid, so the alternative is no line at all.
+  // See docs/guides/site-url-and-base.md.
+  const sitemapOpts: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
+  const robotsHost = astroConfig?.site ? String(astroConfig.site) : sitemapOpts.siteUrl
+  const siteUrl = robotsHost ? buildSiteWithBase(robotsHost, astroConfig?.base) : undefined
   await writeFile(join(outDir, 'robots.txt'), renderRobotsTxt(robotsOpts, siteUrl, sitemapFilename), 'utf-8')
   logger.info('robots.txt generated')
-  for (const issue of filterIssues(auditRobots(robotsOpts), options.audit)) {
-    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
-  }
+  reportIssues(logger, auditRobots(robotsOpts), options.audit)
 }
 
 async function writeLlms(
@@ -350,9 +113,7 @@ async function writeLlms(
     : llmsOpts
   await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(resolvedOpts), 'utf-8')
   logger.info('llms.txt generated')
-  for (const issue of filterIssues(auditLlms(resolvedOpts), options.audit)) {
-    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
-  }
+  reportIssues(logger, auditLlms(resolvedOpts), options.audit)
 }
 
 async function writeSecurity(
@@ -369,9 +130,7 @@ async function writeSecurity(
   await mkdir(wellKnownDir, { recursive: true })
   await writeFile(join(wellKnownDir, 'security.txt'), renderSecurityTxt(options.security), 'utf-8')
   logger.info('.well-known/security.txt generated')
-  for (const issue of filterIssues(auditSecurity(options.security), options.audit)) {
-    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
-  }
+  reportIssues(logger, auditSecurity(options.security), options.audit)
 }
 
 async function writeHumans(
@@ -383,130 +142,7 @@ async function writeHumans(
   const humansOpts: HumansOptions = typeof options.humans === 'object' ? options.humans : {}
   await writeFile(join(outDir, 'humans.txt'), renderHumansTxt(humansOpts), 'utf-8')
   logger.info('humans.txt generated')
-  for (const issue of filterIssues(auditHumans(humansOpts), options.audit)) {
-    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
-  }
-}
-
-async function collectStaticEntries(
-  outDir: string,
-  pathnames: Set<string>,
-  astroConfig: AstroConfig | undefined,
-  sitemapOpts: SitemapOptions,
-  effectiveSiteUrl: string,
-  logger: AstroLogger,
-): Promise<SitemapEntry[]> {
-  const builtInSkipped: string[] = []
-  const candidates: Array<{ urlPath: string; fullUrl: string }> = []
-
-  for (const raw of pathnames) {
-    let urlPath = raw === '' ? '/' : raw.startsWith('/') ? raw : `/${raw}`
-    if (
-      (astroConfig?.build?.format === 'file' || astroConfig?.build?.format === 'preserve') &&
-      urlPath !== '/' &&
-      !urlPath.endsWith('/')
-    ) {
-      urlPath = `${urlPath}.html`
-    }
-    const fullUrl = effectiveSiteUrl ? `${effectiveSiteUrl}${urlPath}` : urlPath
-    const reason = skipReason(urlPath, sitemapOpts.exclude ?? [], sitemapOpts.filter, fullUrl)
-    if (reason) {
-      if (reason === 'built-in') builtInSkipped.push(urlPath)
-      continue
-    }
-    candidates.push({ urlPath, fullUrl })
-  }
-
-  const infos = await mapLimit(candidates, READ_CONCURRENCY, c => readPageInfo(outDir, c.urlPath))
-
-  const excludeNoindex = sitemapOpts.excludeNoindex !== false
-  const entries: SitemapEntry[] = []
-  const redirectSkipped: string[] = []
-  const noindexSkipped: string[] = []
-  for (const [i, candidate] of candidates.entries()) {
-    const info = infos[i]!
-    if (info.isRedirect) {
-      redirectSkipped.push(candidate.urlPath)
-      continue
-    }
-    if (info.noindex && excludeNoindex) {
-      noindexSkipped.push(candidate.urlPath)
-      continue
-    }
-    entries.push({
-      loc: candidate.fullUrl,
-      lastmod: info.lastmod,
-      ...(info.changefreq ? { changefreq: info.changefreq } : {}),
-      ...(info.priority !== undefined ? { priority: info.priority } : {}),
-    })
-  }
-
-  logSkipped(builtInSkipped, 'excluded by built-in rules', logger)
-  logSkipped(redirectSkipped, 'excluded as meta-refresh redirect pages', logger)
-  logSkipped(noindexSkipped, 'excluded because of <meta name="robots" content="noindex">', logger)
-  return entries
-}
-
-function logSkipped(skipped: string[], label: string, logger: AstroLogger): void {
-  if (skipped.length === 0) return
-  const shown = skipped.slice(0, 10).join(', ')
-  const rest = skipped.length - 10
-  logger.info(
-    `sitemap: ${skipped.length} path(s) ${label}: ${shown}`
-    + (rest > 0 ? `, and ${rest} more` : ''),
-  )
-}
-
-async function applySerialize(
-  entries: ResolvedSitemapEntry[],
-  serialize: SitemapOptions['serialize'],
-): Promise<ResolvedSitemapEntry[]> {
-  if (!serialize) return entries
-  const serialized: ResolvedSitemapEntry[] = []
-  for (const entry of entries) {
-    const result = await serialize(entry)
-    if (result !== undefined) serialized.push(result)
-  }
-  return deduplicateEntries(serialized)
-}
-
-async function writeSitemapOutput(
-  outDir: string,
-  entries: ResolvedSitemapEntry[],
-  sitemapOpts: SitemapOptions,
-  effectiveSiteUrl: string,
-  logger: AstroLogger,
-): Promise<string> {
-  await mkdir(outDir, { recursive: true })
-  const maxUrls = sitemapOpts.output?.maxUrls ?? 50_000
-  const filename = sitemapOpts.output?.filename ?? 'sitemap.xml'
-  const useIndex = sitemapOpts.output?.mode === 'index' || entries.length > maxUrls
-
-  if (!useIndex) {
-    const xml = renderSitemapXml(entries, `Generated by ${PLUGIN}`)
-    await writeFile(join(outDir, filename), xml, 'utf-8')
-    logger.info(`${filename} generated (${entries.length} URLs)`)
-    return filename
-  }
-
-  const chunks: ResolvedSitemapEntry[][] = []
-  for (let i = 0; i < entries.length; i += maxUrls) {
-    chunks.push(entries.slice(i, i + maxUrls))
-  }
-  const indexEntries: Array<{ loc: string; lastmod: string }> = []
-  for (let i = 0; i < chunks.length; i++) {
-    const chunkFile = `sitemap-${i + 1}.xml`
-    const xml = renderSitemapXml(chunks[i]!, `Part ${i + 1}/${chunks.length} — Generated by ${PLUGIN}`)
-    await writeFile(join(outDir, chunkFile), xml, 'utf-8')
-    indexEntries.push({
-      loc: effectiveSiteUrl ? `${effectiveSiteUrl}/${chunkFile}` : `/${chunkFile}`,
-      lastmod: TODAY,
-    })
-  }
-  const indexXml = renderSitemapIndex(indexEntries)
-  await writeFile(join(outDir, 'sitemap-index.xml'), indexXml, 'utf-8')
-  logger.info(`sitemap-index.xml generated (${chunks.length} parts, ${entries.length} total URLs)`)
-  return 'sitemap-index.xml'
+  reportIssues(logger, auditHumans(humansOpts), options.audit)
 }
 
 async function writeRss(
@@ -521,10 +157,7 @@ async function writeRss(
   const rss = options.rss ?? sitemapOpts.rss
   if (!rss) return
 
-  const siteUrl = (
-    sitemapOpts.siteUrl ?? (astroConfig?.site ? String(astroConfig.site) : undefined)
-  )?.replace(/\/$/, '')
-  const effectiveSiteUrl = buildSiteWithBase(siteUrl, astroConfig?.base)
+  const { siteUrl, effectiveSiteUrl } = resolveSiteUrls(sitemapOpts.siteUrl, astroConfig)
 
   const rssFilename = rss.filename ?? 'rss.xml'
   const rssSiteUrl = effectiveSiteUrl || siteUrl || ''
@@ -541,60 +174,4 @@ async function writeRss(
   }, rssSiteUrl, rssItems)
   await writeFile(join(outDir, rssFilename), rssXml, 'utf-8')
   logger.info(`${rssFilename} generated (${rssItems.length} items)`)
-}
-
-async function writeSitemap(
-  outDir: string,
-  options: SiteFilesOptions,
-  astroConfig: AstroConfig | undefined,
-  pages: Array<{ pathname: string }>,
-  fallbackPathnames: string[],
-  logger: AstroLogger,
-): Promise<string> {
-  const configured: SitemapOptions = typeof options.sitemap === 'object' ? options.sitemap : {}
-  const sitemapOpts: SitemapOptions = {
-    ...configured,
-    i18n: configured.i18n ?? i18nFromAstroConfig(astroConfig),
-  }
-
-  const siteUrl = (
-    sitemapOpts.siteUrl ?? (astroConfig?.site ? String(astroConfig.site) : undefined)
-  )?.replace(/\/$/, '')
-  const effectiveSiteUrl = buildSiteWithBase(siteUrl, astroConfig?.base)
-
-  const allPathnames = new Set([
-    ...pages.filter(p => p?.pathname != null).map(p => p.pathname),
-    ...fallbackPathnames,
-  ])
-
-  const staticEntries = await collectStaticEntries(
-    outDir,
-    allPathnames,
-    astroConfig,
-    sitemapOpts,
-    effectiveSiteUrl,
-    logger,
-  )
-  const sourceEntries: SitemapEntry[] = []
-  for (const source of sitemapOpts.sources ?? []) {
-    sourceEntries.push(...await source())
-  }
-
-  const resolved: ResolvedSitemapEntry[] = [...staticEntries, ...sourceEntries].map(e =>
-    resolveEntry(e, sitemapOpts, effectiveSiteUrl),
-  )
-  const issues: AuditIssue[] = auditSitemap(resolved, sitemapOpts, siteUrl)
-
-  let entries = deduplicateEntries(resolved)
-  entries = await applySerialize(entries, sitemapOpts.serialize)
-
-  if (sitemapOpts.i18n && effectiveSiteUrl) {
-    entries = buildI18nLinks(entries, sitemapOpts.i18n, effectiveSiteUrl)
-  }
-
-  for (const issue of filterIssues(issues, options.audit)) {
-    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
-  }
-
-  return writeSitemapOutput(outDir, entries, sitemapOpts, effectiveSiteUrl, logger)
 }

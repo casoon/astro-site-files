@@ -9,7 +9,9 @@ order: 1
 The integration builds its absolute URLs from Astro's own options:
 
 - `robots.txt` (`Sitemap:` line), `sitemap.xml` (`<loc>`) and `rss.xml` use `site` + `base`.
-- `sitemap.siteUrl` replaces `site` for the sitemap and the feed; `base` is still appended.
+- `sitemap.siteUrl` replaces `site` for the sitemap and the feed; `base` is still appended. The
+  `Sitemap:` line in `robots.txt` keeps `site`, because it has to point at the file on the origin
+  that serves the robots.txt — `sitemap.siteUrl` is used there only when `site` is unset.
 - `robots.sitemap` as a string replaces the whole Sitemap URL.
 - `llms.txt` links and all `security.txt` and `humans.txt` values are written exactly as
   configured.

@@ -22,6 +22,11 @@ may change existing behaviour.
 - **Robots:** `citationFriendly` and `blockTraining` derive their training rules from the registry's
   categories instead of a hand-maintained list of bot ids, which had not grown with the registry.
   Details: [Presets](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#presets).
+- **Robots:** the `Sitemap:` line falls back to `sitemap.siteUrl` when Astro's `site` is unset.
+  robots.txt was written without any `Sitemap:` line in that case, even though the sitemap carried
+  absolute URLs. With both set, `site` still wins — the line has to resolve on the origin that
+  serves the robots.txt. Details:
+  [Site URL and base path](https://casoon.github.io/astro-site-files/docs/guides/site-url-and-base/).
 
 ## [0.5.0] - 2026-09-09
 

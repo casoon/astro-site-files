@@ -84,7 +84,8 @@ function resolveChangefreq(
   return DEFAULT_CHANGEFREQ
 }
 
-const TODAY = new Date().toISOString().split('T')[0]!
+/** Build-day stamp, shared by entry defaults and the sitemap index. */
+export const TODAY = new Date().toISOString().split('T')[0]!
 
 export function resolveEntry(
   entry: SitemapEntry,

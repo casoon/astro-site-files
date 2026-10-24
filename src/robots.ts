@@ -42,14 +42,9 @@ function resolveAction(
   return bot.defaultAction ?? 'inherit'
 }
 
-function resolvePreset(options: RobotsOptions): PresetConfig {
-  return options.preset ? PRESETS[options.preset] : {}
-}
-
-function compileRegistryRules(options: RobotsOptions): AgentRule[] {
+function compileRegistryRules(options: RobotsOptions, preset: PresetConfig): AgentRule[] {
   if (!options.preset && !options.bots && !options.groups) return []
 
-  const preset = resolvePreset(options)
   const mergedBots: Record<string, BotAction> = { ...preset.bots, ...options.bots }
   const mergedGroups: NonNullable<RobotsOptions['groups']> = { ...preset.groups, ...options.groups }
 
@@ -88,6 +83,7 @@ export function renderRobotsTxt(
   sitemapFilename = 'sitemap.xml',
 ): string {
   const lines: string[] = []
+  const preset: PresetConfig = options.preset ? PRESETS[options.preset] : {}
 
   lines.push('User-agent: *')
 
@@ -102,14 +98,14 @@ export function renderRobotsTxt(
    * empty global group means every bot missing from the registry may crawl
    * freely. Presets that block by default close that gap here.
    */
-  if (resolvePreset(options).globalDisallow) {
+  if (preset.globalDisallow) {
     lines.push('Disallow: /')
   }
   if (options.crawlDelay !== undefined) {
     lines.push(`Crawl-delay: ${options.crawlDelay}`)
   }
 
-  const allAgents = [...compileRegistryRules(options), ...(options.agents ?? [])]
+  const allAgents = [...compileRegistryRules(options, preset), ...(options.agents ?? [])]
 
   for (const agent of allAgents) {
     lines.push('')

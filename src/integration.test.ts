@@ -55,6 +55,42 @@ describe('siteFiles integration', () => {
     expect(robots).toContain('Sitemap: https://example.com/docs/sitemap.xml')
   })
 
+  it('falls back to sitemap.siteUrl for the robots sitemap URL when site is unset', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ sitemap: { siteUrl: 'https://example.com' } })
+
+    getHook(integration, 'astro:config:setup')({ config: {} })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const robots = await readFile(join(outDir, 'robots.txt'), 'utf-8')
+    expect(robots).toContain('Sitemap: https://example.com/sitemap.xml')
+  })
+
+  it('keeps site for the robots sitemap URL even when sitemap.siteUrl points elsewhere', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ sitemap: { siteUrl: 'https://canonical.example' } })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://deploy.example' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [{ pathname: '/' }],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    // The line has to resolve on the origin that serves robots.txt, while the
+    // sitemap itself stays on the canonical host.
+    const robots = await readFile(join(outDir, 'robots.txt'), 'utf-8')
+    expect(robots).toContain('Sitemap: https://deploy.example/sitemap.xml')
+    const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf-8')
+    expect(sitemap).toContain('<loc>https://canonical.example/</loc>')
+  })
+
   it('filters sitemap audit warnings and deduplicates serialized entries before writing', async () => {
     const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
     const logger = createLogger()

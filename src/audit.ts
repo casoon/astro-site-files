@@ -1,3 +1,4 @@
+import type { AstroLogger } from './astro.js'
 import type { HumansOptions, LlmsOptions, RobotsOptions, SecurityOptions } from './types.js'
 
 export interface AuditIssue {
@@ -23,6 +24,17 @@ export function filterIssues(issues: AuditIssue[], options: AuditOptions | boole
     }
   }
   return issues
+}
+
+/** Logs every issue that survives `filterIssues` at its own level. */
+export function reportIssues(
+  logger: AstroLogger,
+  issues: AuditIssue[],
+  options: AuditOptions | boolean | undefined,
+): void {
+  for (const issue of filterIssues(issues, options)) {
+    logger[issue.level](`[${issue.rule}] ${issue.message} — ${issue.help}`)
+  }
 }
 
 // ── robots.txt ────────────────────────────────────────────────────────────────
