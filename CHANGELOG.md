@@ -7,6 +7,21 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+### Added
+
+- **Robots:** the bot registry covers the crawlers that appeared since the last update — among them
+  `Claude-User` and `Claude-SearchBot`, the `MistralAI-*` family, xAI, DeepSeek, Moonshot AI,
+  Alibaba, Tencent, Baidu, Huawei and Cohere. `REGISTRY_VERSION` is now `2026-10-24`;
+  `defaultRegistry` lists every entry.
+
+### Fixed
+
+- **Robots:** `preset: 'lockdown'` now emits `Disallow: /` in the global `User-agent: *` group. That
+  group was left empty, so per [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) every crawler
+  missing from the registry fell back to it and was free to crawl.
+- **Robots:** `citationFriendly` and `blockTraining` derive their training rules from the registry's
+  categories instead of a hand-maintained list of bot ids, which had not grown with the registry.
+
 ## [0.5.0] - 2026-09-09
 
 ### Added

@@ -154,12 +154,30 @@ siteFiles({
 | Preset | searchEngines | verifiedAi | unknownAi | seoScanners | archives | Notes |
 |---|---|---|---|---|---|---|
 | `seoOnly` | allow | disallow | disallow | inherit | disallow | All AI training and archiving blocked; search engines stay |
-| `citationFriendly` | allow | allow | disallow | inherit | inherit | AI may read and cite; training crawlers overridden via `bots` |
+| `citationFriendly` | allow | allow | disallow | inherit | inherit | AI may read and cite; training-only crawlers blocked |
 | `openToAi` | allow | allow | allow | inherit | allow | Everything allowed |
-| `blockTraining` | allow | allow | disallow | inherit | disallow | AI input/search allowed; training bots overridden via `bots` |
-| `lockdown` | disallow | disallow | disallow | disallow | disallow | Everything blocked |
+| `blockTraining` | allow | allow | disallow | inherit | disallow | AI input/search allowed; every training purpose blocked |
+| `lockdown` | disallow | disallow | disallow | disallow | disallow | Everything blocked, including crawlers not in the registry |
 
-`inherit` means no rule is emitted for that group — `User-agent: *` applies. `citationFriendly` and `blockTraining` additionally override specific training bots via `bots` regardless of the `verifiedAi` group setting.
+`inherit` means no rule is emitted for that group — `User-agent: *` applies.
+
+`citationFriendly` and `blockTraining` additionally rule on a bot's training purpose, regardless of the `verifiedAi` group setting. The two differ in reach: `blockTraining` blocks every bot with an `ai-training` category, `citationFriendly` only those whose *sole* purpose is training. So `ClaudeBot` — which both answers prompts and collects training data — is blocked by `blockTraining` and allowed by `citationFriendly`, while `GPTBot` is blocked by both. Both rules are derived from the registry's categories, so a newly added bot is covered without touching the preset.
+
+**Crawlers missing from the registry:** a bot with no group of its own falls back to `User-agent: *`. For `seoOnly`, `citationFriendly` and `blockTraining` that group stays permissive by design — blocking it would shut out search engines the registry does not list. Those presets can therefore only block what they know, so keep the package current, or add your own entries via `extraBots`. `lockdown` instead emits a blanket `Disallow: /` in the global group and does not depend on registry coverage:
+
+```ts
+siteFiles({
+  robots: { preset: 'lockdown' }
+})
+```
+
+```
+User-agent: *
+Disallow: /
+
+User-agent: Googlebot
+Disallow: /
+```
 
 **Global rules and bot groups:** a crawler obeys only the single most specific group that matches it, so a bot with its own block would otherwise ignore `User-agent: *` entirely. Your global `allow` / `disallow` / `crawlDelay` are therefore repeated inside every generated **allow** block:
 

@@ -1,6 +1,23 @@
 import type { BotAction, Preset, RobotsOptions } from './types.js'
 
-type PresetConfig = Pick<RobotsOptions, 'groups' | 'bots'>
+/**
+ * Targets registry bots by training purpose, so a preset stays correct when the
+ * registry grows. `only` matches bots whose sole AI purpose is model training;
+ * `any` also matches dual-purpose bots that both answer prompts and train.
+ */
+export interface TrainingRule {
+  scope: 'any' | 'only'
+  action: BotAction
+}
+
+export type PresetConfig = Pick<RobotsOptions, 'groups' | 'bots'> & {
+  training?: TrainingRule
+  /**
+   * Emit `Disallow: /` in the global `User-agent: *` group. Without it, a
+   * crawler missing from the registry gets no rule at all and is free to crawl.
+   */
+  globalDisallow?: boolean
+}
 
 export const PRESETS: Record<Preset, PresetConfig> = {
   seoOnly: {
@@ -20,13 +37,7 @@ export const PRESETS: Record<Preset, PresetConfig> = {
       seoScanners: 'inherit',
       archives: 'inherit',
     },
-    bots: {
-      GPTBot: 'disallow',
-      'Google-Extended': 'disallow',
-      CCBot: 'disallow',
-      Bytespider: 'disallow',
-      'Applebot-Extended': 'disallow',
-    },
+    training: { scope: 'only', action: 'disallow' },
   },
   openToAi: {
     groups: {
@@ -45,16 +56,7 @@ export const PRESETS: Record<Preset, PresetConfig> = {
       seoScanners: 'inherit',
       archives: 'disallow',
     },
-    bots: {
-      GPTBot: 'disallow',
-      ClaudeBot: 'disallow',
-      'anthropic-ai': 'disallow',
-      'Google-Extended': 'disallow',
-      CCBot: 'disallow',
-      Bytespider: 'disallow',
-      'meta-externalagent': 'disallow',
-      'Applebot-Extended': 'disallow',
-    },
+    training: { scope: 'any', action: 'disallow' },
   },
   lockdown: {
     groups: {
@@ -64,6 +66,7 @@ export const PRESETS: Record<Preset, PresetConfig> = {
       seoScanners: 'disallow',
       archives: 'disallow',
     },
+    globalDisallow: true,
   },
 }
 

@@ -1,11 +1,12 @@
 import type { AgentRule, BotAction, RegistryBot, RobotsOptions } from './types.js'
 import { defaultRegistry } from './registry.js'
-import { PRESETS } from './presets.js'
+import { PRESETS, type PresetConfig, type TrainingRule } from './presets.js'
 
 function resolveAction(
   bot: RegistryBot,
   bots: Record<string, BotAction>,
   groups: NonNullable<RobotsOptions['groups']>,
+  training?: TrainingRule,
 ): BotAction {
   if (bots[bot.id] !== undefined) return bots[bot.id]!
 
@@ -23,6 +24,10 @@ function resolveAction(
   if (cats.includes('seo-scanner') && groups.seoScanners) {
     return groups.seoScanners
   }
+  if (training && cats.includes('ai-training')) {
+    const trainingOnly = !cats.some(c => c === 'ai-search' || c === 'ai-input')
+    if (training.scope === 'any' || trainingOnly) return training.action
+  }
   if (
     bot.verified !== false &&
     cats.some(c => c === 'ai-search' || c === 'ai-input' || c === 'ai-training') &&
@@ -37,10 +42,14 @@ function resolveAction(
   return bot.defaultAction ?? 'inherit'
 }
 
+function resolvePreset(options: RobotsOptions): PresetConfig {
+  return options.preset ? PRESETS[options.preset] : {}
+}
+
 function compileRegistryRules(options: RobotsOptions): AgentRule[] {
   if (!options.preset && !options.bots && !options.groups) return []
 
-  const preset = options.preset ? PRESETS[options.preset] : {}
+  const preset = resolvePreset(options)
   const mergedBots: Record<string, BotAction> = { ...preset.bots, ...options.bots }
   const mergedGroups: NonNullable<RobotsOptions['groups']> = { ...preset.groups, ...options.groups }
 
@@ -48,7 +57,7 @@ function compileRegistryRules(options: RobotsOptions): AgentRule[] {
   const rules: AgentRule[] = []
 
   for (const bot of registry) {
-    const action = resolveAction(bot, mergedBots, mergedGroups)
+    const action = resolveAction(bot, mergedBots, mergedGroups, preset.training)
     if (action === 'inherit') continue
     const ua = bot.userAgents.length === 1 ? bot.userAgents[0]! : bot.userAgents
     rules.push(action === 'disallow' ? { userAgent: ua, disallow: ['/'] } : allowRule(ua, options))
@@ -87,6 +96,14 @@ export function renderRobotsTxt(
   }
   if (options.disallow?.length) {
     for (const path of options.disallow) lines.push(`Disallow: ${path}`)
+  }
+  /**
+   * A crawler that has no group of its own falls back to `User-agent: *`, so an
+   * empty global group means every bot missing from the registry may crawl
+   * freely. Presets that block by default close that gap here.
+   */
+  if (resolvePreset(options).globalDisallow) {
+    lines.push('Disallow: /')
   }
   if (options.crawlDelay !== undefined) {
     lines.push(`Crawl-delay: ${options.crawlDelay}`)
