@@ -11,6 +11,10 @@ export default defineConfig({
   site: 'https://casoon.github.io',
   base: '/astro-site-files/',
   integrations: [
+    // Dogfooding: this site's own robots.txt, llms.txt, sitemap.xml, security.txt and humans.txt.
+    // Listed before casoonPages(), because build hooks run in this order and the theme writes a
+    // sitemap.xml of its own only when none exists yet.
+    siteFiles(siteFilesOptions),
     casoonPages({
       name: 'astro-site-files',
       description:
@@ -26,8 +30,6 @@ export default defineConfig({
         reference: 'Reference',
       },
     }),
-    // Dogfooding: this site's own robots.txt, llms.txt, sitemap.xml, security.txt and humans.txt.
-    siteFiles(siteFilesOptions),
     // Must follow siteFiles(): copies the files it wrote into the showcase pages.
     inlineGeneratedFiles(),
   ],

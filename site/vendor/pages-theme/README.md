@@ -211,7 +211,10 @@ in `astro.config.mjs`.
   title stays under about 60 characters; `description` remains the meta description.
 - **OG image:** `og.png` (1200×630) is rendered at build time from name, tagline, description
   and address, in the theme's fonts and the dark theme, with the project's dark `accent` as edge.
-- **Sitemap:** `sitemap.xml` lists every built page except 404, linked from the head.
+- **Sitemap:** `sitemap.xml` lists every built page except 404, linked from the head. A project
+  that writes its own — `@casoon/astro-site-files` does — keeps it: the theme skips the file when
+  it already exists. That works only when the project's integration is listed before
+  `casoonPages()` in `astro.config.mjs`, because the hooks run in that order.
 - **Links out:** the header shows `website` next to the project name; the footer links
   `website`, the project's catalog entry on casoon.dev and the catalog itself, all with
   descriptive text in the page's `lang`.

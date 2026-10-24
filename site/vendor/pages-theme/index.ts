@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -165,16 +166,21 @@ export default function casoonPages(options: CasoonPagesOptions): AstroIntegrati
       'astro:build:done': async ({ dir, pages }) => {
         const base = site;
         if (!base) return;
-        const urls = pages
-          .map((page) => page.pathname)
-          .filter((pathname) => pathname !== '404/')
-          .map((pathname) => `  <url><loc>${new URL(pathname, base).href}</loc></url>`);
-        await writeFile(
-          new URL('sitemap.xml', dir),
-          '<?xml version="1.0" encoding="UTF-8"?>\n' +
-            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-            `${urls.join('\n')}\n</urlset>\n`
-        );
+        // A project that writes its own sitemap keeps it: this one is the fallback, not the
+        // authority. It only sees that file when the project's integration is listed first.
+        const sitemap = new URL('sitemap.xml', dir);
+        if (!existsSync(sitemap)) {
+          const urls = pages
+            .map((page) => page.pathname)
+            .filter((pathname) => pathname !== '404/')
+            .map((pathname) => `  <url><loc>${new URL(pathname, base).href}</loc></url>`);
+          await writeFile(
+            sitemap,
+            '<?xml version="1.0" encoding="UTF-8"?>\n' +
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+              `${urls.join('\n')}\n</urlset>\n`
+          );
+        }
         await writeFile(new URL('og.png', dir), await renderOgImage(resolved, base));
       },
     },
