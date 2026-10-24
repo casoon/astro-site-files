@@ -1,92 +1,107 @@
 # Changelog
 
-All notable changes to this project are documented in this file.
+All notable changes to `@casoon/astro-site-files` are listed here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html): while it is at 0.x, a minor version
+may change existing behaviour.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [Unreleased]
 
-## [0.5.0] — 2026-09-09
-
-### Changed
-
-These take effect without any config change.
-
-- Pages carrying `<meta name="robots" content="noindex">` in their `<head>` are dropped from the
-  sitemap — Search Console reports submitted `noindex` URLs as errors. Opt out with
-  `sitemap.excludeNoindex: false`.
-- `sitemap.i18n` defaults to Astro's own `i18n` config, so hreflang alternates and an `x-default`
-  link now appear on multilingual sites that never configured `sitemap.i18n`.
-- Built-in priority and changefreq defaults ignore locale prefixes: `/de/` is scored like `/`
-  instead of one level below it, and `/de/blog/x/` like `/blog/x/`.
-- A crawler with its own `robots.txt` group now also receives the global `allow` / `disallow` /
-  `crawlDelay` rules. Per RFC 9309 a bot obeys only its
-  most specific matching group, so a `Disallow: /admin/` under `User-agent: *` previously did not
-  apply to Googlebot at all. Blocked bots keep a bare `Disallow: /` — a global `Allow:` must not
-  punch a hole into a bot that was deliberately blocked outright.
-- The `Sitemap:` line in `robots.txt` points at the file that was actually written —
-  `sitemap-index.xml` in index mode, or `output.filename`.
+## [0.5.0] - 2026-09-09
 
 ### Added
 
-- `rss` is a top-level option and is written independently of the sitemap, including with
+- **Audit:** rules `security/expired`, `security/invalid-expires` and `security/contact-not-a-uri`
+  for [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) conformance.
+- **RSS:** `rss` is a top-level option and is written independently of the sitemap, including with
   `sitemap: false`.
-- Per-item `guid` and `guidIsPermaLink` for feeds keyed by UUID or URN.
-- `sitemap.localeAgnosticRules` and a per-rule `allLocales` flag, so a single `priority` or
-  `changefreq` rule can cover every translation — or opt back out to target one locale.
-- `sitemap.excludeNoindex` to keep `noindex` pages in the sitemap.
-- Audit rules `security/expired`, `security/invalid-expires` and `security/contact-not-a-uri`
-  for RFC 9116 conformance.
+- **RSS:** per-item `guid` and `guidIsPermaLink` for feeds keyed by UUID or URN.
+- **Sitemap:** `sitemap.localeAgnosticRules` and a per-rule `allLocales` flag, so a single
+  `priority` or `changefreq` rule can cover every translation — or opt back out to target one
+  locale.
+- **Sitemap:** `sitemap.excludeNoindex` to keep `noindex` pages in the sitemap.
 
-### Fixed
+### Changed
 
-- A pathname without a trailing slash no longer crashes the build with `EISDIR` when it maps to a
-  directory on disk; its `index.html` is read instead.
-- Error-page exclusion is anchored to a whole path segment, so an article like
-  `/blog/404-error-pages-guide/` stays in the sitemap.
-- `data-sitemap-changefreq` and `data-sitemap-priority` are read from every JSON-LD block, not only
-  the first — layouts commonly emit an `Organization` block ahead of the page's own `Article`.
-- A configured priority of `0.55` is no longer rounded to `0.6`.
-- RSS: root-relative and bare item links are joined onto the site URL without dropping or doubling
-  the slash.
-- RSS: an unparseable `pubDate` omits the `<pubDate>` element instead of emitting `Invalid Date`,
-  which breaks every feed validator.
+- **Robots:** a crawler with its own group now also receives the global `allow` / `disallow` /
+  `crawlDelay` rules, because per [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) a bot obeys
+  only its most specific matching group. Bots that are blocked outright keep a bare `Disallow: /`.
+- **Robots:** the `Sitemap:` line points at the file that was actually written —
+  `sitemap-index.xml` in index mode, or `output.filename`.
+- **Sitemap:** the built-in exclusions no longer drop paths under `/api/`, `/landing/` and
+  `/drafts/`; they guessed at content rather than structure and ran before `exclude` / `filter`,
+  so no configuration could bring such a page back.
+- **Sitemap:** paths dropped by a built-in rule or by meta-refresh redirect detection are logged
+  instead of disappearing silently.
+- **Sitemap:** pages carrying `<meta name="robots" content="noindex">` are dropped, since Search
+  Console reports submitted `noindex` URLs as errors. Opt out with `sitemap.excludeNoindex: false`.
+- **Sitemap:** `sitemap.i18n` defaults to Astro's own `i18n` config, so hreflang alternates and an
+  `x-default` link appear on multilingual sites that never configured `sitemap.i18n`.
+- **Sitemap:** built-in priority and changefreq defaults ignore locale prefixes: `/de/` is scored
+  like `/`, and `/de/blog/x/` like `/blog/x/`.
+- **Sitemap:** each page's HTML is opened and read once instead of twice, with bounded concurrency
+  rather than strictly sequentially. Noticeable on sites with thousands of pages.
+- **npm:** `peerDependencies: { astro: ">=6.0.0" }` added — `peerDependenciesMeta` had no effect
+  without it.
+- **npm:** `npm ci` works again; the lockfile carried a stale nested `@emnapi/wasi-threads`.
+- **Contributors:** devDependencies on latest — TypeScript 7, vitest 5 and `@types/node` 26.5,
+  which resolves all four known dev-dependency advisories. TypeScript 7 no longer auto-includes
+  `@types/*`, hence the explicit `"types": ["node"]` in `tsconfig.json`.
 
 ### Deprecated
 
-- `sitemap.rss` — use the top-level `rss` option. The old placement still works and is read as a
-  fallback.
+- **Sitemap:** `sitemap.rss` — use the top-level `rss` option. The old placement still works and is
+  read as a fallback.
 
-### Performance
+### Fixed
 
-- Each page's HTML is opened and read once instead of twice, with bounded concurrency, rather than
-  strictly sequentially. Noticeable on sites with thousands of pages.
+- **RSS:** root-relative and bare item links are joined onto the site URL without dropping or
+  doubling the slash.
+- **RSS:** an unparseable `pubDate` omits the `<pubDate>` element instead of emitting
+  `Invalid Date`, which breaks every feed validator.
+- **Sitemap:** a pathname without a trailing slash no longer crashes the build with `EISDIR` when
+  it maps to a directory on disk; its `index.html` is read instead.
+- **Sitemap:** error-page exclusion is anchored to a whole path segment, so an article like
+  `/blog/404-error-pages-guide/` stays in the sitemap.
+- **Sitemap:** `data-sitemap-changefreq` and `data-sitemap-priority` are read from every JSON-LD
+  block, not only the first — layouts commonly emit an `Organization` block ahead of the page's own
+  `Article`.
+- **Sitemap:** a configured priority of `0.55` is no longer rounded to `0.6`.
 
-### Internal
+## [0.4.1] - 2026-06-01
 
-- `peerDependencies: { astro: ">=6.0.0" }` added — `peerDependenciesMeta` had no effect without it.
-- `npm ci` works again; the lockfile carried a stale nested `@emnapi/wasi-threads`.
-- devDependencies on latest: TypeScript 7, vitest 5, `@types/node` 26.5. Resolves all four known
-  dev-dependency advisories. TypeScript 7 no longer auto-includes `@types/*`, hence the explicit
-  `"types": ["node"]` in `tsconfig.json`.
+### Added
 
-## [0.4.1] — earlier
-
-Summarised from the git history; these releases predate this changelog.
-
-- Full bot registry and preset system ported from `@casoon/astro-crawler-policy`
+- **Robots:** full bot registry and preset system ported from `@casoon/astro-crawler-policy`
   (`seoOnly`, `citationFriendly`, `openToAi`, `blockTraining`, `lockdown`).
-- Per-page `changefreq` / `priority` via `data-sitemap-*` attributes on a JSON-LD script tag.
-- Meta-refresh redirect pages excluded from the sitemap.
+- **Sitemap:** per-page `changefreq` / `priority` via `data-sitemap-*` attributes on a JSON-LD
+  script tag.
 
-## [0.3.0] — earlier
+### Changed
 
-- RSS 2.0 feed support extracted from `@casoon/astro-sitemap`, including `createRssRoute`.
+- **Sitemap:** meta-refresh redirect pages are excluded.
 
-## [0.2.0] — earlier
+## [0.3.0] - 2026-05-26
 
-- Unified audit types, `llms.sources`, XML escaping, base-aware robots URL, sitemap deduplication.
-- Node.js ≥ 22.12.0.
+### Added
 
+- **RSS:** RSS 2.0 feed support extracted from `@casoon/astro-sitemap`, including
+  `createRssRoute`.
+
+## [0.2.0] - 2026-05-26
+
+### Added
+
+- **Audit:** unified audit types.
+- **llms.txt:** `llms.sources`.
+
+### Changed
+
+- **Robots:** the robots URL is base-aware.
+- **Sitemap:** entries are deduplicated and XML is escaped.
+- **npm:** Node.js ≥ 22.12.0 required.
+
+[Unreleased]: https://github.com/casoon/astro-site-files/compare/v0.5.0...HEAD
 [0.5.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.5.0
 [0.4.1]: https://github.com/casoon/astro-site-files/releases/tag/v0.4.1
 [0.3.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.3.0
