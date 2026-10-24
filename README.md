@@ -2,7 +2,7 @@
 
 Astro integration that generates all standard site meta-files from typed configuration at build time.
 
-**Website and documentation:** [casoon.github.io/astro-site-files](https://casoon.github.io/astro-site-files/)
+**Website:** [astro-site-files.casoon.de](https://astro-site-files.casoon.de/en/) · **Documentation:** [casoon.github.io/astro-site-files](https://casoon.github.io/astro-site-files/)
 
 ## What it does
 
