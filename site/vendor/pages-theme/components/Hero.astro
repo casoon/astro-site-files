@@ -181,7 +181,8 @@ const hasSource = Astro.slots.has('source');
     padding: 8px 14px;
     border-radius: 999px;
     background: var(--brand);
-    color: #fff;
+    /* The page ground, not white: on the light brand of the dark theme white reaches only 3:1. */
+    color: var(--bg);
     font-family: var(--font-mono);
     font-size: 12px;
     white-space: nowrap;

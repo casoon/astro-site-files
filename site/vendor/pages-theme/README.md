@@ -64,6 +64,9 @@ export const collections = { docs: docsCollection() };
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `name`, `description`, `repo` | – | Header, meta tags, GitHub links, JSON-LD |
+| `tagline` | – | A few words for the start page's `<title>` and the OG image; see „Search engines" |
+| `website` | – | The project's landing page (`https://judge.casoon.de`): header, footer, JSON-LD `sameAs` |
+| `catalog` | repository name | Slug of the project's entry on casoon.dev (`#projekt-<slug>`), linked in the footer; `false` for none |
 | `version` | – | Header badge, "Docs for vX" |
 | `license` | `MIT` | SPDX id for footer and JSON-LD; `false` for proprietary code names no licence |
 | `branch` | `main` | "Edit this page" links |
@@ -87,6 +90,7 @@ export const collections = { docs: docsCollection() };
 | `/changelog/` | `CHANGELOG.md` (`## [x.y.z] - YYYY-MM-DD`, `### Added` …, `### Breaking`) |
 | `/demo/` | the project's `src/pages/demo.astro`, linked once `demo` is set |
 | `/404` | theme |
+| `/sitemap.xml`, `/og.png` | written after the build when `site` is set; see „Search engines" |
 
 ### Docs frontmatter
 
@@ -195,6 +199,31 @@ rules below — nowhere else on the site:
 Everything else still holds, the origin rule above all: a demo loads its code from the site
 itself. One that needs a CDN cannot ship here.
 
+## Search engines
+
+Each page gets canonical URL, meta description, Open Graph and `twitter:card`
+(`summary_large_image`), and JSON-LD `SoftwareSourceCode` with `url`, `codeRepository`, `sameAs`
+(`website` and the `packages` links) and CASOON as author and publisher. All of it needs `site`
+in `astro.config.mjs`.
+
+- **Title:** the start page is `<name> – <tagline> | CASOON`, other pages `<page> · <name>`.
+  Without `tagline` the start page is `<name> | CASOON`. Keep the tagline to a few words, so the
+  title stays under about 60 characters; `description` remains the meta description.
+- **OG image:** `og.png` (1200×630) is rendered at build time from name, tagline, description
+  and address, in the theme's fonts and the dark theme, with the project's dark `accent` as edge.
+- **Sitemap:** `sitemap.xml` lists every built page except 404, linked from the head.
+- **Links out:** the header shows `website` next to the project name; the footer links
+  `website`, the project's catalog entry on casoon.dev and the catalog itself, all with
+  descriptive text in the page's `lang`.
+
+`casoon.github.io` has no root repository, so there is no root `robots.txt` pointing at the
+sitemaps. Register each site in Google Search Console instead, once per project:
+
+1. *Add property* → *URL prefix* → `https://casoon.github.io/<repo>/`.
+2. Verify ownership with the *HTML file* method: put the downloaded `google<id>.html` into the
+   project's `site/public/` and deploy; it is served at `https://casoon.github.io/<repo>/google<id>.html`.
+3. *Sitemaps* → submit `sitemap.xml` (resolved against the prefix).
+
 ## Rules the theme enforces
 
 - No external requests: fonts are bundled (Onest, JetBrains Mono, Latin subset), no CDNs,
@@ -202,7 +231,7 @@ itself. One that needs a CDN cannot ship here.
 - JavaScript: two small inline scripts (theme before first paint; theme toggle and copy
   buttons). Tabs work without JavaScript. The one exception is a `Demo` stage, see above.
 - Footer on every page: "Ein Projekt von CASOON · Jörn Seidel", licence, Impressum and
-  Datenschutz (casoon.de), "Weitere Projekte" (casoon.dev).
+  Datenschutz (casoon.de), the project catalog on casoon.dev.
 - Light and dark theme, following `prefers-color-scheme` until the visitor chooses.
 
 ## Abweichungen vom Entwurf
