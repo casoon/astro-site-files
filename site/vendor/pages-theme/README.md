@@ -155,8 +155,9 @@ output.
 
 `FileSet` takes `files` — `id`, `name` and optional `path`, `size`, `note` — and one named slot
 per `id` holding that file's content, the same way `Tabs` does. The `rail` view needs no slots.
-The tab strip wraps instead of scrolling, so no file name is ever hidden, and each pane scrolls
-on its own for long lines.
+The tab strip stays on one row at every width: below 640 px the names lose their suffix
+(`robots.txt` → `robots`, and only when the stems stay distinct), and a strip that still does not
+fit scrolls sideways. Each pane scrolls on its own for long lines.
 
 `tone="invert"` redefines the colour tokens inside the hero, so `Install`, `Badges` and
 `FileSet` follow without knowing about it. The ground is `--invert-bg` with `--invert-accent`,
