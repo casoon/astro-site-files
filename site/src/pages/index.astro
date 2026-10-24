@@ -6,6 +6,7 @@ import {
   CodeBlock,
   Facts,
   Features,
+  FileSet,
   Hero,
   Install,
   Quickstart,
@@ -28,13 +29,41 @@ export default defineConfig({
     }),
   ],
 })`;
+
+// The hero shows the options object alone; the quickstart below has the whole file.
+const heroConfig = `siteFiles({
+  robots: { preset: 'seoOnly' },
+  llms: { title: 'Example', description: 'An example website.' },
+  sitemap: {},
+  security: { contact: 'mailto:security@example.com' },
+  humans: { team: [{ name: 'Alice', role: 'Development' }] },
+})`;
+
+// Every file this site's own build wrote, in the order the documentation introduces them.
+const generated = [
+  { id: 'robots', name: 'robots.txt', path: 'dist/robots.txt' },
+  { id: 'llms', name: 'llms.txt', path: 'dist/llms.txt' },
+  { id: 'sitemap', name: 'sitemap.xml', path: 'dist/sitemap.xml' },
+  { id: 'security', name: 'security.txt', path: 'dist/.well-known/security.txt' },
+  { id: 'humans', name: 'humans.txt', path: 'dist/humans.txt' },
+];
 ---
 
 <Base>
   <Hero
-    title="Site meta files, generated from typed config."
-    lead="@casoon/astro-site-files writes robots.txt, llms.txt, sitemap.xml, security.txt and humans.txt into the build output when astro build runs. This site generates its own."
+    layout="stack"
+    command="astro build"
+    title="One typed config, five generated files."
+    lead="@casoon/astro-site-files writes robots.txt, llms.txt, sitemap.xml, security.txt and humans.txt into the build output when astro build runs. The files below are the ones this build wrote."
   >
+    <CodeBlock slot="source" code={heroConfig} lang="ts" title="astro.config.ts" label="TypeScript" />
+    <FileSet slot="output" files={generated}>
+      <Fragment slot="robots" set:html={generatedFile('robots.txt')} />
+      <Fragment slot="llms" set:html={generatedFile('llms.txt')} />
+      <Fragment slot="sitemap" set:html={generatedFile('sitemap.xml')} />
+      <Fragment slot="security" set:html={generatedFile('.well-known/security.txt')} />
+      <Fragment slot="humans" set:html={generatedFile('humans.txt')} />
+    </FileSet>
     <Install
       commands={[
         { label: 'npm', command: 'npm install @casoon/astro-site-files' },
@@ -47,9 +76,6 @@ export default defineConfig({
       <Badge>Astro ≥ 6</Badge>
       <Badge>Node.js ≥ 22.12</Badge>
     </Badges>
-    <Terminal slot="output" title="dist/llms.txt" dots>
-      <Fragment set:html={generatedFile('llms.txt')} />
-    </Terminal>
   </Hero>
 
   <Facts

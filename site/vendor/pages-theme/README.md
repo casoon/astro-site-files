@@ -65,7 +65,7 @@ export const collections = { docs: docsCollection() };
 | --- | --- | --- |
 | `name`, `description`, `repo` | – | Header, meta tags, GitHub links, JSON-LD |
 | `version` | – | Header badge, "Docs for vX" |
-| `license` | `MIT` | Footer, JSON-LD |
+| `license` | `MIT` | SPDX id for footer and JSON-LD; `false` for proprietary code names no licence |
 | `branch` | `main` | "Edit this page" links |
 | `accent` | CASOON petrol | `{ light, dark }` project colour; needs 4.5:1 on `#f6f6f5` and `#101010` |
 | `packages` | `[]` | Registry and API-doc links in the footer |
@@ -74,6 +74,8 @@ export const collections = { docs: docsCollection() };
 | `showcase` | `./src/showcase.ts` | Module exporting `examples: ShowcaseExample[]`, or `false` |
 | `demo` | `false` | Header label of a live demo page; the project supplies `src/pages/demo.astro` |
 | `mdxComponents` | – | Module exporting `components` for docs MDX, next to the theme's; see „Docs frontmatter" |
+| `lang` | `en` | `en` or `de`: `<html lang>` and the theme's own UI strings (`lib/i18n.ts`); props passed by the project win |
+| `showcaseLead` | – | Lead paragraph of the showcase overview, instead of the theme's generic one |
 
 ### Routes
 
@@ -104,11 +106,12 @@ Import from `@casoon/pages-theme/components` in `.astro` files; available direct
 
 | Component | Use |
 | --- | --- |
-| `Hero` | Title, lead, default slot (install, badges), `output` slot (real output) |
+| `Hero` | Title, lead, default slot (install, badges), `output` slot (real output); `layout`, `command` and `tone` pick the variant |
 | `Install` | Install command per ecosystem, CSS-only tabs, copy button |
 | `Badge`, `Badges` | Static badges (no external badge services) |
 | `Facts` | Verifiable key figures |
 | `Features` | 3–5 core points |
+| `FileSet` | The files a run produced: `tabs`, `grid` or `rail` view |
 | `BuildOutput` | One real build output on the start page |
 | `Quickstart` | Steps, docs link, code slot |
 | `CodeBlock` | Build-time highlighting (Shiki, theme-aware), copy button |
@@ -125,6 +128,50 @@ own renderer. `ansiToHtml` renders the 16-colour palette as classes (so the them
 apply) and 256-colour and 24-bit colour — foreground and background — as inline styles. `@casoon/pages-theme/layouts/Base.astro` wraps custom pages in the frame, and
 `@casoon/pages-theme/url` exports `url()` — a project page that links or loads something
 site-internal needs it, because the base path changes per project.
+
+## Hero variants
+
+`Hero` carries four start-page openings. All of them use the same props; `layout`, `command`
+and `tone` decide which one, and what goes into the slots decides the rest. The `output`
+slot takes the project's real output — a `Terminal`, or `FileSet` when the project writes
+files.
+
+| Variant | Hero | `output` slot |
+| --- | --- | --- |
+| Artefacts | `layout="split"` (default) | `FileSet view="grid"` — one card per file |
+| Pipeline | `layout="stack" command="<cmd>"` plus a `source` slot | `FileSet view="tabs"` — one pane per file |
+| Colour field | `tone="invert"` on any layout | `Terminal`, or whatever the project shows |
+| Editorial | `layout="editorial"` | `FileSet view="rail"` — names and one line each |
+
+The stack layout reads as a pipeline: the `source` slot (usually a `CodeBlock` with the
+configuration), the `command` pill, then the output. Without a `source` slot the band is just
+the output, full width. Below 900 px the three parts stack and the arrow turns down.
+
+`FileSet` takes `files` — `id`, `name` and optional `path`, `size`, `note` — and one named slot
+per `id` holding that file's content, the same way `Tabs` does. The `rail` view needs no slots.
+The tab strip wraps instead of scrolling, so no file name is ever hidden, and each pane scrolls
+on its own for long lines.
+
+`tone="invert"` redefines the colour tokens inside the hero, so `Install`, `Badges` and
+`FileSet` follow without knowing about it. The ground is `--invert-bg` with `--invert-accent`,
+the same in both colour schemes.
+
+## Showcase descriptions
+
+`description` is plain text with one piece of markup: `` `backtick spans` `` become inline
+code on the detail page and the overview cards, styled like inline code in the docs. Everything
+else is escaped, so a description cannot inject HTML. In the meta description the backticks are
+dropped. Descriptions without backticks render as before.
+
+## Large showcases
+
+A showcase with many examples gets two optional fields per `ShowcaseExample`:
+
+- `group`: the heading the example is listed under. Examples of one group appear together, groups in
+  the order of their first example, with a jump list at the top of the overview.
+- `preview`: HTML for a small preview, typically a lazily loaded image. An example with a preview
+  appears on the overview as a card (title, description, preview, link to the detail page);
+  input and output stay on the detail page. Without it the overview shows the full panel as before.
 
 ## Live demo
 
