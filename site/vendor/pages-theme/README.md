@@ -67,7 +67,7 @@ export const collections = { docs: docsCollection() };
 | `tagline` | – | A few words for the start page's `<title>` and the OG image; see „Search engines" |
 | `website` | – | The project's landing page (`https://judge.casoon.de`): header, footer, JSON-LD `sameAs` |
 | `catalog` | repository name | Slug of the project's entry on casoon.dev (`#projekt-<slug>`), linked in the footer; `false` for none |
-| `version` | – | Header badge, "Docs for vX" |
+| `version` | the project's manifest | Header badge, "Docs for vX"; see „Version" | 
 | `license` | `MIT` | SPDX id for footer and JSON-LD; `false` for proprietary code names no licence |
 | `branch` | `main` | "Edit this page" links |
 | `accent` | CASOON petrol | `{ light, dark }` project colour; needs 4.5:1 on `#f6f6f5` and `#101010` |
@@ -79,6 +79,18 @@ export const collections = { docs: docsCollection() };
 | `mdxComponents` | – | Module exporting `components` for docs MDX, next to the theme's; see „Docs frontmatter" |
 | `lang` | `en` | `en` or `de`: `<html lang>` and the theme's own UI strings (`lib/i18n.ts`); props passed by the project win |
 | `showcaseLead` | – | Lead paragraph of the showcase overview, instead of the theme's generic one |
+
+#### Version
+
+Left out, `version` comes from the manifest next to `site/`: `version` in `package.json`, else
+`[package]` or `[workspace.package]` in `Cargo.toml`. So the number is maintained in one place,
+and a release updates the site by itself. Pages read it as `config.version` from
+`virtual:casoon-pages/config` — a start page that shows the release in a `Badge` takes it from
+there instead of typing it out.
+
+A wrong number is worse than none, so anything that cannot be read with certainty yields none:
+a workspace whose version sits in a member crate, a `package.json` without `version`, a project
+with neither manifest. Those pass `version` themselves, and `false` shows none at all.
 
 ### Routes
 

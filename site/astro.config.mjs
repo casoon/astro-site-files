@@ -21,7 +21,7 @@ export default defineConfig({
         'Astro integration that generates robots.txt, llms.txt, sitemap.xml, security.txt and humans.txt at build time from typed configuration.',
       repo: 'casoon/astro-site-files',
       tagline: 'Site meta files at build time',
-      version: '0.7.0',
+      // version comes from ../package.json; the theme reads it when the option is left out.
       license: 'MIT',
       packages: [{ label: 'npm', href: 'https://www.npmjs.com/package/@casoon/astro-site-files' }],
       docsGroups: {

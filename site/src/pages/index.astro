@@ -13,6 +13,7 @@ import {
   Terminal,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
+import pages from 'virtual:casoon-pages/config';
 import { generatedFile } from '../inline-generated-files';
 
 const config = `import { defineConfig } from 'astro/config'
@@ -72,7 +73,7 @@ const generated = [
     />
     <Badges>
       <Badge>MIT</Badge>
-      <Badge>npm 0.7.0</Badge>
+      <Badge>npm {pages.version}</Badge>
       <Badge>Astro ≥ 6</Badge>
       <Badge>Node.js ≥ 22.12</Badge>
     </Badges>
