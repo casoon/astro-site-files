@@ -7,6 +7,8 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-24
+
 ### Added
 
 - **Audit:** rule `llms/relative-links` (`warn`) for relative link URLs that cannot be resolved
