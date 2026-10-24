@@ -1,6 +1,6 @@
 ---
 title: Build-time audit
-description: Fifteen checks that report configuration problems in the build log, and how to silence them.
+description: Sixteen checks that report configuration problems in the build log, and how to silence them.
 order: 2
 ---
 

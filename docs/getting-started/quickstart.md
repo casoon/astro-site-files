@@ -6,8 +6,14 @@ order: 2
 
 ## 1. Set `site`
 
-Absolute URLs in `robots.txt` and `sitemap.xml` come from Astro's `site` option. Without it the
-sitemap contains relative paths and the build log warns (`sitemap/no-site-url`).
+Every absolute URL the integration writes comes from Astro's `site` option: the `Sitemap:` line in
+`robots.txt`, each `<loc>` in `sitemap.xml`, the links in `rss.xml` and the relative link URLs in
+`llms.txt`. Without it the sitemap contains relative paths (`sitemap/no-site-url` in the build log)
+and the llms.txt links stay relative (`llms/relative-links`), which leaves them unusable for a
+reader that fetched the file on its own.
+
+`site` is the host; a subpath belongs in `base`, which the integration appends itself — see
+[Site URL and base path](../../guides/site-url-and-base/).
 
 ## 2. Add the integration
 

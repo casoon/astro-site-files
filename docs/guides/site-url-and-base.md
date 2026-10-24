@@ -1,21 +1,57 @@
 ---
 title: Site URL and base path
-description: How site and base become the URLs in robots.txt, sitemap.xml and rss.xml, and what a subpath deployment means for crawlers.
+description: Which origin each generated file uses, why robots.txt is the exception, and what a subpath deployment means for crawlers.
 order: 1
 ---
 
 ## Where the URLs come from
 
-The integration builds its absolute URLs from Astro's own options:
+The integration builds its absolute URLs from Astro's own options — `site` is the host, `base` the
+path below it:
 
-- `robots.txt` (`Sitemap:` line), `sitemap.xml` (`<loc>`) and `rss.xml` use `site` + `base`.
-- `sitemap.siteUrl` replaces `site` for the sitemap and the feed; `base` is still appended. The
-  `Sitemap:` line in `robots.txt` keeps `site`, because it has to point at the file on the origin
-  that serves the robots.txt — `sitemap.siteUrl` is used there only when `site` is unset.
-- `robots.sitemap` as a string replaces the whole Sitemap URL.
-- `llms.txt` links follow the sitemap: a relative URL gets `site` (or `sitemap.siteUrl`) + `base`
-  in front of it, a URL with a scheme is written as given. All `security.txt` and `humans.txt`
-  values are written exactly as configured.
+| File | The URL in it | Origin it uses |
+| --- | --- | --- |
+| `robots.txt` | the `Sitemap:` line | `site` + `base`; `sitemap.siteUrl` only when `site` is unset |
+| `sitemap.xml` | every `<loc>` | `sitemap.siteUrl`, else `site`, + `base` |
+| `rss.xml` | feed URL and item links | `sitemap.siteUrl`, else `site`, + `base` |
+| `llms.txt` | relative link URLs in `sections` and `sources` | `sitemap.siteUrl`, else `site`, + `base` |
+| `security.txt`, `humans.txt` | every value | written exactly as configured |
+
+A relative URL in `llms.txt` is left as configured when no site URL is set, and the audit reports
+`llms/relative-links`. The sitemap falls back to relative `<loc>` values and reports
+`sitemap/no-site-url`. A relative `Sitemap:` line is not valid, so robots.txt then omits it.
+
+## Why robots.txt is the exception
+
+Most of these URLs point at content: a crawler follows them to read pages, so they have to name
+the origin on which that content is canonical. `sitemap.siteUrl` exists for the case where that
+origin is not the one being built — a preview or project-page deployment whose pages live on the
+production domain.
+
+The `Sitemap:` line is a different kind of URL. It points at a file sitting next to the robots.txt
+itself, which a crawler reads at `https://host/robots.txt` and expects to find on that same host.
+Astro's `site` therefore wins there, and `sitemap.siteUrl` is used only when `site` is unset.
+`robots.sitemap` as a string replaces the whole Sitemap URL for anything these rules do not cover.
+
+## Two origins at once
+
+```js
+export default defineConfig({
+  // where this build is served from
+  site: 'https://preview.example.com',
+  integrations: [
+    siteFiles({
+      // where the pages are canonical
+      sitemap: { siteUrl: 'https://example.com' },
+      llms: { title: 'Example', sections: [{ title: 'Pages', links: [{ title: 'Home', url: '/' }] }] },
+    }),
+  ],
+})
+```
+
+`sitemap.xml`, `rss.xml` and the `llms.txt` links then name `https://example.com`, while
+`Sitemap: https://preview.example.com/sitemap.xml` in robots.txt points at the file that is
+actually there.
 
 ## Keep the path out of `site`
 
