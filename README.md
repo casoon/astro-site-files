@@ -19,7 +19,7 @@ All files are written to the build output directory when `astro build` runs.
 
 ## Changelog
 
-Release notes live in [CHANGELOG.md](CHANGELOG.md). **0.5.0 contains behaviour changes that take effect without any config change** — `noindex` pages are dropped from the sitemap, hreflang alternates are derived from Astro's `i18n` config, locale prefixes no longer lower a page's priority, and bots with their own `robots.txt` group now inherit the global rules. See [the 0.5.0 entry](CHANGELOG.md#050--2026-09-09) before upgrading.
+Release notes live in [CHANGELOG.md](CHANGELOG.md). **0.6.0 changes the generated `robots.txt` without any config change** — the bot registry grows from 25 to 64 crawlers, `preset: 'lockdown'` now emits a global `Disallow: /`, and the `citationFriendly` and `blockTraining` training rules are derived from the registry's categories. See [the 0.6.0 entry](CHANGELOG.md#060--2026-10-24) before upgrading.
 
 ## Requirements
 

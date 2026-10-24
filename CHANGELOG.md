@@ -7,6 +7,8 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-24
+
 ### Added
 
 - **Robots:** the bot registry grows from 25 to 64 crawlers, covering those that appeared since the
@@ -22,10 +24,8 @@ may change existing behaviour.
 - **Robots:** `citationFriendly` and `blockTraining` derive their training rules from the registry's
   categories instead of a hand-maintained list of bot ids, which had not grown with the registry.
   Details: [Presets](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#presets).
-- **Robots:** the `Sitemap:` line falls back to `sitemap.siteUrl` when Astro's `site` is unset.
-  robots.txt was written without any `Sitemap:` line in that case, even though the sitemap carried
-  absolute URLs. With both set, `site` still wins — the line has to resolve on the origin that
-  serves the robots.txt. Details:
+- **Robots:** the `Sitemap:` line falls back to `sitemap.siteUrl` when Astro's `site` is unset —
+  previously no `Sitemap:` line was written at all. With both set, `site` still wins. Details:
   [Site URL and base path](https://casoon.github.io/astro-site-files/docs/guides/site-url-and-base/).
 
 ## [0.5.0] - 2026-09-09
@@ -125,7 +125,8 @@ may change existing behaviour.
 - **Sitemap:** entries are deduplicated and XML is escaped.
 - **npm:** Node.js ≥ 22.12.0 required.
 
-[Unreleased]: https://github.com/casoon/astro-site-files/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/casoon/astro-site-files/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.6.0
 [0.5.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.5.0
 [0.4.1]: https://github.com/casoon/astro-site-files/releases/tag/v0.4.1
 [0.3.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.3.0
