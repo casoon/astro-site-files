@@ -57,27 +57,52 @@ so `User-agent: *` applies.
 | `blockTraining` | allow | allow | disallow | inherit | disallow |
 | `lockdown` | disallow | disallow | disallow | disallow | disallow |
 
-Two presets also block single bots regardless of their group:
+Two presets also rule on a bot's training purpose, regardless of its group: `blockTraining`
+blocks every bot with an `ai-training` category, `citationFriendly` only those whose *sole*
+purpose is training. So `ClaudeBot`, which both answers prompts and collects training data, is
+blocked by `blockTraining` and allowed by `citationFriendly`, while `GPTBot` is blocked by both.
+Both rules read the registry's categories, so a bot added later is covered without touching the
+preset.
 
-- `citationFriendly`: `GPTBot`, `Google-Extended`, `CCBot`, `Bytespider`, `Applebot-Extended`.
-- `blockTraining`: the same five plus `ClaudeBot`, `anthropic-ai` and `meta-externalagent`.
+**Crawlers missing from the registry** fall back to `User-agent: *`. For `seoOnly`,
+`citationFriendly` and `blockTraining` that group stays permissive by design — blocking it would
+shut out search engines the registry does not list, so those presets can only block what they
+know. `lockdown` instead emits a blanket `Disallow: /` there and does not depend on registry
+coverage.
 
 Precedence, highest first: `bots`, then `groups`, then the preset.
 
 ## Bot registry
 
-The registry (`defaultRegistry`, version `2026-05-27`) knows 25 crawlers:
+The registry (`defaultRegistry`, version `2026-10-24`) knows 64 crawlers. Each one falls into the
+first group that matches it:
 
-| Group | Bots |
+| Group | Bots | Examples |
+| --- | --- | --- |
+| `searchEngines` | 4 | Googlebot, Bingbot, DuckDuckBot, Applebot |
+| `verifiedAi` | 46 | GPTBot, ClaudeBot, Claude-SearchBot, PerplexityBot, MistralAI-Index, GrokBot, DeepSeekBot, meta-externalagent |
+| `unknownAi` | 8 | Diffbot, FirecrawlAgent, ImagesiftBot, Crawlspace |
+| `seoScanners` | 4 | AhrefsBot, SemrushBot, MJ12bot, DotBot |
+| `archives` | 2 | ia_archiver, archive.org_bot |
+
+`defaultRegistry` lists every entry, `REGISTRY_VERSION` the ISO date of the last update.
+
+Categories say what a bot is *for*, not who runs it, because the presets rule on them:
+
+| Category | Meaning |
 | --- | --- |
-| `searchEngines` | Googlebot, Bingbot, DuckDuckBot |
-| `verifiedAi` | GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, Claude-Web, anthropic-ai, Google-Extended, CCBot, PerplexityBot, YouBot, Bytespider, meta-externalagent, Amazonbot, Applebot-Extended |
-| `unknownAi` | Diffbot, Omgilibot |
-| `seoScanners` | AhrefsBot, SemrushBot, MJ12bot, DotBot |
-| `archives` | ia_archiver, archive.org_bot |
+| `search` | Classic search engine index |
+| `ai-search` | Builds an index an AI product answers from |
+| `ai-input` | Fetches a page on demand for an assistant or agent |
+| `ai-training` | Content may end up in a model's training set |
+| `unknown-ai` | AI-adjacent, purpose not documented by the operator |
+| `seo-scanner` | Backlink and SEO analysis |
+| `archive` | Web archive |
 
-Add your own with `extraBots`; each entry needs `id`, `provider`, `userAgents` and `categories`
-(`search`, `ai-search`, `ai-input`, `ai-training`, `unknown-ai`, `seo-scanner`, `archive`).
+`verified: false` marks bots whose operator publishes no crawler policy; `unknownAi` targets
+exactly those.
+
+Add your own with `extraBots`; each entry needs `id`, `provider`, `userAgents` and `categories`.
 
 ## Global rules inside bot groups
 

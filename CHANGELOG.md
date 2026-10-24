@@ -9,10 +9,10 @@ may change existing behaviour.
 
 ### Added
 
-- **Robots:** the bot registry covers the crawlers that appeared since the last update — among them
-  `Claude-User` and `Claude-SearchBot`, the `MistralAI-*` family, xAI, DeepSeek, Moonshot AI,
-  Alibaba, Tencent, Baidu, Huawei and Cohere. `REGISTRY_VERSION` is now `2026-10-24`;
-  `defaultRegistry` lists every entry.
+- **Robots:** the bot registry grows from 25 to 64 crawlers, covering those that appeared since the
+  last update — among them `Claude-User`, `Claude-SearchBot` and the `MistralAI-*` family.
+  `REGISTRY_VERSION` is now `2026-10-24`. Details:
+  [Bot registry](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#bot-registry).
 
 ### Fixed
 
@@ -21,26 +21,29 @@ may change existing behaviour.
   missing from the registry fell back to it and was free to crawl.
 - **Robots:** `citationFriendly` and `blockTraining` derive their training rules from the registry's
   categories instead of a hand-maintained list of bot ids, which had not grown with the registry.
+  Details: [Presets](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#presets).
 
 ## [0.5.0] - 2026-09-09
 
 ### Added
 
 - **Audit:** rules `security/expired`, `security/invalid-expires` and `security/contact-not-a-uri`
-  for [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) conformance.
+  for [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) conformance. Details:
+  [Rules](https://casoon.github.io/astro-site-files/docs/guides/audit/#rules).
 - **RSS:** `rss` is a top-level option and is written independently of the sitemap, including with
-  `sitemap: false`.
+  `sitemap: false`. Details: [RSS feed](https://casoon.github.io/astro-site-files/docs/configuration/rss/#options).
 - **RSS:** per-item `guid` and `guidIsPermaLink` for feeds keyed by UUID or URN.
 - **Sitemap:** `sitemap.localeAgnosticRules` and a per-rule `allLocales` flag, so a single
   `priority` or `changefreq` rule can cover every translation — or opt back out to target one
-  locale.
+  locale. Details: [Built-in priority and changefreq](https://casoon.github.io/astro-site-files/docs/configuration/sitemap-xml/#built-in-priority-and-changefreq).
 - **Sitemap:** `sitemap.excludeNoindex` to keep `noindex` pages in the sitemap.
 
 ### Changed
 
 - **Robots:** a crawler with its own group now also receives the global `allow` / `disallow` /
-  `crawlDelay` rules, because per [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) a bot obeys
-  only its most specific matching group. Bots that are blocked outright keep a bare `Disallow: /`.
+  `crawlDelay` rules, since per [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) a bot obeys only
+  its most specific matching group. Details:
+  [Global rules inside bot groups](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#global-rules-inside-bot-groups).
 - **Robots:** the `Sitemap:` line points at the file that was actually written —
   `sitemap-index.xml` in index mode, or `output.filename`.
 - **Sitemap:** the built-in exclusions no longer drop paths under `/api/`, `/landing/` and
@@ -51,7 +54,8 @@ may change existing behaviour.
 - **Sitemap:** pages carrying `<meta name="robots" content="noindex">` are dropped, since Search
   Console reports submitted `noindex` URLs as errors. Opt out with `sitemap.excludeNoindex: false`.
 - **Sitemap:** `sitemap.i18n` defaults to Astro's own `i18n` config, so hreflang alternates and an
-  `x-default` link appear on multilingual sites that never configured `sitemap.i18n`.
+  `x-default` link appear on multilingual sites that never configured `sitemap.i18n`. Details:
+  [Multilingual sites](https://casoon.github.io/astro-site-files/docs/configuration/sitemap-xml/#multilingual-sites).
 - **Sitemap:** built-in priority and changefreq defaults ignore locale prefixes: `/de/` is scored
   like `/`, and `/de/blog/x/` like `/blog/x/`.
 - **Sitemap:** each page's HTML is opened and read once instead of twice, with bounded concurrency

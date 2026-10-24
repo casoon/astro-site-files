@@ -27,7 +27,7 @@ API site. Package page: [npm](https://www.npmjs.com/package/@casoon/astro-site-f
 | `auditRobots`, `auditLlms`, `auditSecurity`, `auditHumans`, `auditSitemap` | function | Return `AuditIssue[]` |
 | `filterIssues` | function | Applies `AuditOptions` to a list of issues |
 | `defaultRegistry` | constant | The 25 built-in bots (`RegistryBot[]`) |
-| `REGISTRY_VERSION` | constant | Date of the last registry update, currently `2026-05-27` |
+| `REGISTRY_VERSION` | constant | Date of the last registry update, currently `2026-10-24` |
 
 ## `@casoon/astro-site-files/rss`
 
