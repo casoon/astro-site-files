@@ -1,0 +1,55 @@
+name: Release
+
+# A version tag verifies the package and publishes it to npm through trusted
+# publishing: the job exchanges a GitHub OIDC token for npm, so no npm token is
+# stored anywhere, and the package gets a provenance statement. It runs in the
+# `npm` environment, whose required reviewer has to approve it — releasing
+# stays a deliberate step rather than a side effect of pushing a tag.
+#
+# workflow_dispatch runs only the verification, as a dry run before tagging.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
+
+  publish-npm:
+    name: Publish to npm
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5 or newer.
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm publish --access public
