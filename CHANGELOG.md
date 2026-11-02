@@ -9,7 +9,7 @@ may change existing behaviour.
 
 ### Changed
 
-- **Pages:** the project site uses the current shared theme (0.12.5).
+- **Pages:** the project site uses the current shared theme (0.12.6).
 - **Site:** the footer follows the page language instead of always showing German text, and the
   start page now carries a release teaser, an FAQ and a closing link to the quickstart (theme 0.12.2).
 
