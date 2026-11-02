@@ -10,7 +10,7 @@ may change existing behaviour.
 ### Changed
 
 - **Site:** the footer follows the page language instead of always showing German text, and the
-  start page now carries a release teaser and an FAQ (theme 0.11.1).
+  start page now carries a release teaser, an FAQ and a closing link to the quickstart (theme 0.12.2).
 
 ## [0.7.1] - 2026-10-26
 

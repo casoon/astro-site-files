@@ -4,6 +4,7 @@ import {
   Badge,
   Badges,
   BuildOutput,
+  CallToAction,
   CodeBlock,
   Facts,
   Faq,
@@ -18,6 +19,7 @@ import {
 import Base from '@casoon/pages-theme/layouts/Base.astro';
 import { parseChangelog } from '@casoon/pages-theme/lib/changelog';
 import pages from 'virtual:casoon-pages/config';
+import { url } from '@casoon/pages-theme/url';
 import { generatedFile } from '../inline-generated-files';
 
 // Skip "Unreleased": it has no version to show as "New in v…" yet.
@@ -161,5 +163,11 @@ const generated = [
         a: 'Yes. @casoon/astro-site-files is the successor to both — it covers robots.txt and llms.txt from astro-crawler-policy, and sitemap.xml and rss.xml from astro-sitemap, which are no longer actively maintained.',
       },
     ]}
+  />
+
+  <CallToAction
+    title="Five generated files in three steps."
+    href={url('docs/getting-started/quickstart/')}
+    label="Read the quickstart"
   />
 </Base>
