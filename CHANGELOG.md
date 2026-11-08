@@ -13,6 +13,13 @@ may change existing behaviour.
 - **Site:** the footer follows the page language instead of always showing German text, and the
   start page now carries a release teaser, an FAQ and a closing link to the quickstart (theme 0.12.2).
 
+### Fixed
+
+- **Robots:** the global `User-agent: *` group is no longer written without a rule; when no
+  `allow`, `disallow` or preset rule applies, it gets `Allow: /`. Parsers that merge
+  consecutive `User-agent` lines handed it the rules of the next bot block before. Details:
+  [Presets](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#presets).
+
 ## [0.7.1] - 2026-10-26
 
 ### Added

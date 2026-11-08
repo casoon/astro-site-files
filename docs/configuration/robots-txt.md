@@ -68,7 +68,8 @@ preset.
 `citationFriendly` and `blockTraining` that group stays permissive by design — blocking it would
 shut out search engines the registry does not list, so those presets can only block what they
 know. `lockdown` instead emits a blanket `Disallow: /` there and does not depend on registry
-coverage.
+coverage. A global group without any `allow`, `disallow` or preset rule gets an explicit
+`Allow: /`, because [RFC 9309](https://www.rfc-editor.org/rfc/rfc9309) expects at least one rule per group.
 
 Precedence, highest first: `bots`, then `groups`, then the preset.
 

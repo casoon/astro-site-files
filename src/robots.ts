@@ -101,6 +101,14 @@ export function renderRobotsTxt(
   if (preset.globalDisallow) {
     lines.push('Disallow: /')
   }
+  /**
+   * RFC 9309 requires at least one rule per group. Without one, parsers that
+   * merge consecutive `User-agent` lines hand `*` the rules of the next group,
+   * others ignore the group — so state the permissive default explicitly.
+   */
+  if (lines.length === 1) {
+    lines.push('Allow: /')
+  }
   if (options.crawlDelay !== undefined) {
     lines.push(`Crawl-delay: ${options.crawlDelay}`)
   }
