@@ -7,6 +7,8 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-08
+
 ### Changed
 
 - **Pages:** the project site uses the current shared theme (0.12.6).
@@ -161,7 +163,10 @@ may change existing behaviour.
 - **Sitemap:** entries are deduplicated and XML is escaped.
 - **npm:** Node.js ≥ 22.12.0 required.
 
-[Unreleased]: https://github.com/casoon/astro-site-files/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/casoon/astro-site-files/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/casoon/astro-site-files/releases/tag/v0.7.2
+[0.7.1]: https://github.com/casoon/astro-site-files/releases/tag/v0.7.1
+[0.7.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.7.0
 [0.6.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.6.0
 [0.5.0]: https://github.com/casoon/astro-site-files/releases/tag/v0.5.0
 [0.4.1]: https://github.com/casoon/astro-site-files/releases/tag/v0.4.1
