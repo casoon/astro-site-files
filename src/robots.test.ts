@@ -199,8 +199,15 @@ describe('renderRobotsTxt lockdown closes the global group', () => {
     // seoOnly must not block unknown *search* engines, so `*` stays permissive
     // and registry coverage is the only lever there.
     for (const preset of ['seoOnly', 'citationFriendly', 'openToAi', 'blockTraining'] as const) {
-      expect(globalBlock(renderRobotsTxt({ preset }))).toBe('User-agent: *')
+      expect(globalBlock(renderRobotsTxt({ preset }))).toBe('User-agent: *\nAllow: /')
     }
+  })
+
+  it('never leaves the global group without a rule', () => {
+    expect(globalBlock(renderRobotsTxt({})).trimEnd()).toBe('User-agent: *\nAllow: /')
+    // Crawl-delay is no allow/disallow rule, so the group still needs one
+    expect(globalBlock(renderRobotsTxt({ crawlDelay: 2 })).trimEnd()).toBe('User-agent: *\nAllow: /\nCrawl-delay: 2')
+    expect(globalBlock(renderRobotsTxt({ disallow: ['/admin/'] })).trimEnd()).toBe('User-agent: *\nDisallow: /admin/')
   })
 
   it('keeps user-supplied global rules alongside the blanket disallow', () => {
