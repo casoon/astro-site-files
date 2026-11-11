@@ -7,6 +7,11 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+### Changed
+
+- **Pages:** the project site uses the current shared theme (0.12.8).
+
+
 ## [0.7.2] - 2026-11-08
 
 ### Changed
