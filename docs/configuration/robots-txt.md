@@ -172,6 +172,35 @@ Crawl-delay: 1
 Sitemap: https://example.com/sitemap.xml
 ```
 
+## Why no Content Signals
+
+Earlier versions of the predecessor package wrote a `Content-Signal` line (`search`, `ai-input`,
+`ai-train`) into the `*` group. This package does not. The directive comes from a proposal
+(IETF aipref) rather than a standard, many crawlers ignore it, and Google Search Console can
+report it as an unknown directive. The presets decide per bot with `Allow`/`Disallow` instead.
+
+## Staging with lockdown
+
+The configuration is plain JavaScript, so choose the preset from the environment there:
+
+```ts
+// astro.config.ts
+const isProduction = process.env.DEPLOY_ENV === 'production'
+
+export default defineConfig({
+  site: 'https://example.com',
+  integrations: [
+    siteFiles({
+      robots: { preset: isProduction ? 'citationFriendly' : 'lockdown' },
+    }),
+  ],
+})
+```
+
+`DEPLOY_ENV` is a variable you set yourself per deployment; the package reads none. `lockdown`
+writes `Disallow: /` for every group, including `User-agent: *`. This is a request to crawlers,
+not access protection: keep staging behind authentication if it must stay private.
+
 ## The Sitemap line
 
 With `sitemap: true` the URL is `site` + `base` + the file the sitemap writer produced:

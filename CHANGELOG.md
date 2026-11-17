@@ -7,6 +7,10 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+### Added
+
+- **Docs:** migration guide from `astro-crawler-policy`, a note on why no Content Signals are written, and a staging recipe with `lockdown`.
+
 ### Changed
 
 - **Pages:** the project site uses the current shared theme (0.12.14).
