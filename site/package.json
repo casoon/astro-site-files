@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@casoon/astro-site-files": "link:..",
-    "@casoon/pages-theme": "^0.16.3",
+    "@casoon/pages-theme": "^0.16.4",
     "astro": "^7.3.2"
   },
   "devDependencies": {
