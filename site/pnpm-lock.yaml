@@ -12,8 +12,8 @@ importers:
         specifier: link:..
         version: link:..
       '@casoon/pages-theme':
-        specifier: ^0.16.4
-        version: 0.16.4(@astrojs/markdown-satteri@0.4.1)(@types/node@24.13.4)(astro@7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1))
+        specifier: ^0.17.0
+        version: 0.17.0(@astrojs/markdown-satteri@0.4.1)(@types/node@24.13.4)(astro@7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1))
       astro:
         specifier: ^7.3.2
         version: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1)
@@ -209,8 +209,8 @@ packages:
     resolution: {integrity: sha512-CuNiSqg7+e1cO/GjffyMOm5Tt2jUF9CWHHnvQ/UkqvtkGfHdgwEC0wpmq7fkN3gxwpRnrAN0WzO3vREKmNolMQ==}
     engines: {node: '>=18'}
 
-  '@casoon/pages-theme@0.16.4':
-    resolution: {integrity: sha512-MmTKwvzOiuGvZFbqAbYsuVM70hXIw5uF7AOD2kGBZKR9Eh5Qkvw4S39wPdF0r2tVEY83SoNjXdofOkE3mqAwBA==}
+  '@casoon/pages-theme@0.17.0':
+    resolution: {integrity: sha512-Zodlk0I/I4y+adF3iPj6IXwchmqKLl8DDdS422Wq81BtlCEhG10BgfHWj0aFq0jXkCikt+1hQlZlQv6Jh4HxHA==}
     peerDependencies:
       astro: ^7.3.2
 
@@ -2082,7 +2082,7 @@ snapshots:
     dependencies:
       fontkitten: 1.0.3
 
-  '@casoon/pages-theme@0.16.4(@astrojs/markdown-satteri@0.4.1)(@types/node@24.13.4)(astro@7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1))':
+  '@casoon/pages-theme@0.17.0(@astrojs/markdown-satteri@0.4.1)(@types/node@24.13.4)(astro@7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1))':
     dependencies:
       '@astrojs/mdx': 8.1.2(@astrojs/markdown-satteri@0.4.1)(astro@7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1))
       astro: 7.3.2(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.13.4)(yaml@2.9.1)
