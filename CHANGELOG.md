@@ -13,7 +13,7 @@ may change existing behaviour.
 
 ### Changed
 
-- **Pages:** the project site uses the current shared theme (0.18.0).
+- **Pages:** the project site uses the current shared theme (0.19.0).
 
 
 ## [0.7.2] - 2026-11-08
