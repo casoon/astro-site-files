@@ -7,6 +7,8 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-27
+
 ### Added
 
 - **llms.txt:** option `llms.full` writes `llms-full.txt` with the full Markdown of the pages you
