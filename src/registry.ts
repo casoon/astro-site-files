@@ -1,6 +1,6 @@
 import type { RegistryBot } from './types.js'
 
-export const REGISTRY_VERSION = '2026-10-24'
+export const REGISTRY_VERSION = '2026-11-27'
 
 /**
  * Categories drive the preset rules, so they describe what a bot is *for*, not
@@ -41,7 +41,9 @@ export const defaultRegistry: RegistryBot[] = [
   { id: 'anthropic-ai',     provider: 'Anthropic',     userAgents: ['anthropic-ai'],     categories: ['ai-input', 'ai-training'],      verified: true },
 
   // ── Google ──────────────────────────────────────────────────────────────────
-  { id: 'Google-Extended',  provider: 'Google',        userAgents: ['Google-Extended'],  categories: ['ai-training'],                  verified: true },
+  // Google-Extended is a control token, not a crawler: it governs training *and*
+  // grounding in the Gemini app, so blocking it also removes Gemini citations.
+  { id: 'Google-Extended',  provider: 'Google',        userAgents: ['Google-Extended'],  categories: ['ai-search', 'ai-training'],    verified: true },
   { id: 'Google-CloudVertexBot', provider: 'Google',   userAgents: ['Google-CloudVertexBot'], categories: ['ai-input'],               verified: true },
 
   // ── Common Crawl ────────────────────────────────────────────────────────────

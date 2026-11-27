@@ -61,6 +61,8 @@ Two presets also rule on a bot's training purpose, regardless of its group: `blo
 blocks every bot with an `ai-training` category, `citationFriendly` only those whose *sole*
 purpose is training. So `ClaudeBot`, which both answers prompts and collects training data, is
 blocked by `blockTraining` and allowed by `citationFriendly`, while `GPTBot` is blocked by both.
+`Google-Extended` counts as dual-purpose too: besides training, it decides whether the Gemini app
+may ground answers on your pages and link to them.
 Both rules read the registry's categories, so a bot added later is covered without touching the
 preset.
 
@@ -75,7 +77,7 @@ Precedence, highest first: `bots`, then `groups`, then the preset.
 
 ## Bot registry
 
-The registry (`defaultRegistry`, version `2026-10-24`) knows 64 crawlers. Each one falls into the
+The registry (`defaultRegistry`, version `2026-11-27`) knows 64 crawlers. Each one falls into the
 first group that matches it:
 
 | Group | Bots | Examples |

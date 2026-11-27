@@ -280,6 +280,12 @@ describe('training rules are derived from categories, not a hand-kept bot list',
     }
   })
 
+  it('treats Google-Extended as citation-relevant: Gemini grounding depends on it', () => {
+    expect(blockFor(renderRobotsTxt({ preset: 'citationFriendly' }), 'Google-Extended')).toContain('Allow: /')
+    expect(blockFor(renderRobotsTxt({ preset: 'blockTraining' }), 'Google-Extended')).toContain('Disallow: /')
+    expect(blockFor(renderRobotsTxt({ preset: 'seoOnly' }), 'Google-Extended')).toContain('Disallow: /')
+  })
+
   it('a per-bot override still wins over the derived training rule', () => {
     const result = renderRobotsTxt({ preset: 'blockTraining', bots: { GPTBot: 'allow' } })
     expect(blockFor(result, 'GPTBot')).toContain('Allow: /')

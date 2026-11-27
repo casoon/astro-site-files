@@ -14,6 +14,10 @@ may change existing behaviour.
 ### Changed
 
 - **Pages:** the project site uses the current shared theme (0.19.0).
+- **Robots:** `Google-Extended` is classed as dual-purpose (`ai-search`, `ai-training`), because it
+  also controls grounding and links in the Gemini app. `citationFriendly` now allows it;
+  `blockTraining` and `seoOnly` still block it. Details:
+  [Presets](https://casoon.github.io/astro-site-files/docs/configuration/robots-txt/#presets).
 
 
 ## [0.7.2] - 2026-11-08

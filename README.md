@@ -161,7 +161,7 @@ siteFiles({
 
 `inherit` means no rule is emitted for that group — `User-agent: *` applies.
 
-`citationFriendly` and `blockTraining` additionally rule on a bot's training purpose, regardless of the `verifiedAi` group setting. The two differ in reach: `blockTraining` blocks every bot with an `ai-training` category, `citationFriendly` only those whose *sole* purpose is training. So `ClaudeBot` — which both answers prompts and collects training data — is blocked by `blockTraining` and allowed by `citationFriendly`, while `GPTBot` is blocked by both. Both rules are derived from the registry's categories, so a newly added bot is covered without touching the preset.
+`citationFriendly` and `blockTraining` additionally rule on a bot's training purpose, regardless of the `verifiedAi` group setting. The two differ in reach: `blockTraining` blocks every bot with an `ai-training` category, `citationFriendly` only those whose *sole* purpose is training. So `ClaudeBot` — which both answers prompts and collects training data — is blocked by `blockTraining` and allowed by `citationFriendly`, while `GPTBot` is blocked by both. `Google-Extended` counts as dual-purpose too: besides training, it decides whether the Gemini app may ground answers on your pages and link to them. Both rules are derived from the registry's categories, so a newly added bot is covered without touching the preset.
 
 **Crawlers missing from the registry:** a bot with no group of its own falls back to `User-agent: *`. For `seoOnly`, `citationFriendly` and `blockTraining` that group stays permissive by design — blocking it would shut out search engines the registry does not list. Those presets can therefore only block what they know, so keep the package current, or add your own entries via `extraBots`. `lockdown` instead emits a blanket `Disallow: /` in the global group and does not depend on registry coverage:
 
@@ -248,7 +248,7 @@ siteFiles({
 | `ClaudeBot` | Anthropic |
 | `Claude-Web` | Anthropic |
 | `anthropic-ai` | Anthropic |
-| `Google-Extended` | Google — Gemini / AI Overviews training |
+| `Google-Extended` | Google — Gemini training and grounding in the Gemini app; not Search or AI Overviews |
 | `CCBot` | Common Crawl — the base dataset behind many models |
 | `PerplexityBot` | Perplexity AI |
 | `YouBot` | You.com AI search |

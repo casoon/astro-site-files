@@ -40,7 +40,7 @@ export const configSeoOnly = defineConfig({
 //
 // searchEngines: allow  verifiedAi: allow  unknownAi: disallow
 // seoScanners: inherit  archives: inherit
-// + GPTBot, Google-Extended, CCBot, Bytespider, Applebot-Extended → disallow
+// + GPTBot, CCBot, Bytespider, Applebot-Extended → disallow
 //
 // Good for: content sites that want AI assistants to cite them,
 //           but don't want their content used for model training.
