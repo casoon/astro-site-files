@@ -7,6 +7,8 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-27
+
 ### Added
 
 - **Docs:** migration guide from `astro-crawler-policy`, a note on why no Content Signals are written, and a staging recipe with `lockdown`.
