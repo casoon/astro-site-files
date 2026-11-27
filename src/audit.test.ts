@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { auditHumans, auditLlms, auditRobots, auditSecurity } from './audit.js'
+import { auditHumans, auditLlms, auditLlmsFull, auditRobots, auditSecurity } from './audit.js'
 
 describe('auditRobots', () => {
   it('warns when legal pages are disallowed', () => {
@@ -116,5 +116,70 @@ describe('auditHumans', () => {
       technology: ['Astro'],
     })
     expect(issues).toHaveLength(0)
+  })
+})
+
+describe('auditLlmsFull', () => {
+  const page = (url: string, markdown: string) => ({ title: url, url, markdown })
+  const rules = (issues: { rule: string }[]) => issues.map(i => i.rule)
+
+  it('is quiet for plain Markdown with absolute URLs resolvable', () => {
+    expect(auditLlmsFull([page('/a/', '# A\n\nText with <b>html</b>.')], 'https://example.com')).toEqual([])
+  })
+
+  it('warns when there are no pages', () => {
+    expect(rules(auditLlmsFull([], 'https://example.com'))).toEqual(['llms/full-no-pages'])
+  })
+
+  it('names the pages that still carry MDX imports, exports or component tags', () => {
+    const issues = auditLlmsFull(
+      [
+        page('/imports/', "import Callout from '../Callout.astro'\n\nText"),
+        page('/exports/', 'export const meta = {}\n\nText'),
+        page('/component/', 'Text\n\n<Callout>Note</Callout>'),
+        page('/plain/', 'Text about import and export.'),
+      ],
+      'https://example.com',
+    )
+    expect(rules(issues)).toEqual(['llms/full-mdx-syntax'])
+    expect(issues[0]!.message).toContain('/imports/, /exports/, /component/')
+    expect(issues[0]!.message).not.toContain('/plain/')
+  })
+
+  it('ignores imports and component tags inside fenced code blocks', () => {
+    const markdown = [
+      'Install it:',
+      '',
+      '```ts',
+      "import siteFiles from '@casoon/astro-site-files'",
+      '```',
+      '',
+      '~~~astro',
+      '<Layout />',
+      '~~~',
+      '',
+      '  ```js',
+      '  export default {}',
+      '  ```',
+    ].join('\n')
+    expect(auditLlmsFull([page('/docs/', markdown)], 'https://example.com')).toEqual([])
+    expect(rules(auditLlmsFull([page('/mdx/', `${markdown}\n\nimport X from './x'`)], 'https://example.com'))).toEqual([
+      'llms/full-mdx-syntax',
+    ])
+  })
+
+  it('names pages that still start with a frontmatter block', () => {
+    const issues = auditLlmsFull(
+      [page('/raw/', '---\ntitle: Raw\n---\n\nText'), page('/rule/', 'Text\n\n---\n\nMore')],
+      'https://example.com',
+    )
+    expect(rules(issues)).toEqual(['llms/full-frontmatter'])
+    expect(issues[0]!.message).toContain('/raw/')
+    expect(issues[0]!.message).not.toContain('/rule/')
+  })
+
+  it('warns about relative Source URLs only without a site URL', () => {
+    expect(rules(auditLlmsFull([page('/a/', 'Text')]))).toEqual(['llms/full-relative-links'])
+    expect(rules(auditLlmsFull([page('https://example.com/a/', 'Text')]))).toEqual([])
   })
 })

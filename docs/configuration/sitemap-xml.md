@@ -20,7 +20,8 @@ For each discovered page the integration opens its HTML once and reads:
 - `data-sitemap-changefreq` and `data-sitemap-priority` on any JSON-LD `<script>` tag.
 
 Always excluded: `/404`, `/500`, paths starting with `/_`, and the generated files themselves
-(`sitemap.xml`, `sitemap-index.xml`, `robots.txt`, `llms.txt`, `rss.xml`, `feed.xml`). The build
+(`sitemap.xml`, `sitemap-index.xml`, `robots.txt`, `llms.txt`, `llms-full.txt`, `rss.xml`,
+`feed.xml`). The build
 log lists every path dropped by these rules. Segments like `/api/` or `/drafts/` are not excluded
 automatically; use `exclude` or `filter`.
 

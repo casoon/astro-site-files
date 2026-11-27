@@ -12,6 +12,7 @@ site's meta files into the build output, each from its own typed options object:
 | `robots.txt` | [`robots`](configuration/robots-txt/) | on |
 | `sitemap.xml` | [`sitemap`](configuration/sitemap-xml/) | on |
 | `llms.txt` | [`llms`](configuration/llms-txt/) | off, needs `title` |
+| `llms-full.txt` | [`llms.full`](configuration/llms-txt/#llms-fulltxt) | off, needs `llms` and pages |
 | `rss.xml` | [`rss`](configuration/rss/) | off, needs `title`, `description`, `getItems` |
 | `.well-known/security.txt` | [`security`](configuration/security-txt/) | off, needs `contact` |
 | `humans.txt` | [`humans`](configuration/humans-txt/) | off |

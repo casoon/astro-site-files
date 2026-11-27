@@ -1,4 +1,4 @@
-import type { LlmsOptions } from './types.js'
+import type { LlmsFullPage, LlmsOptions } from './types.js'
 
 /** `mailto:`, `tel:`, `https:` — anything already carrying a scheme stays as it is. */
 const ABSOLUTE_URL = /^[a-z][a-z0-9+.-]*:/i
@@ -20,20 +20,16 @@ export function resolveLlmsLinkUrl(url: string, siteUrl: string | undefined): st
   return `${base}${url.startsWith('/') ? url : `/${url}`}`
 }
 
+/** Title, description and details — the head llms.txt and llms-full.txt share. */
+function renderHeader(options: LlmsOptions): string[] {
+  const lines = [`# ${options.title}`]
+  if (options.description) lines.push('', `> ${options.description}`)
+  if (options.details) lines.push('', options.details)
+  return lines
+}
+
 export function renderLlmsTxt(options: LlmsOptions, siteUrl?: string): string {
-  const lines: string[] = []
-
-  lines.push(`# ${options.title}`)
-
-  if (options.description) {
-    lines.push('')
-    lines.push(`> ${options.description}`)
-  }
-
-  if (options.details) {
-    lines.push('')
-    lines.push(options.details)
-  }
+  const lines = renderHeader(options)
 
   if (options.sections?.length) {
     for (const section of options.sections) {
@@ -47,6 +43,24 @@ export function renderLlmsTxt(options: LlmsOptions, siteUrl?: string): string {
         }
       }
     }
+  }
+
+  return lines.join('\n') + '\n'
+}
+
+/**
+ * llms-full.txt: the llms.txt header, then every page as `# title`, a `Source:`
+ * line with its absolute URL and its Markdown as given. The Markdown is not
+ * rewritten — MDX module syntax is reported by `auditLlmsFull` instead.
+ */
+export function renderLlmsFullTxt(options: LlmsOptions, pages: LlmsFullPage[], siteUrl?: string): string {
+  const lines = renderHeader(options)
+
+  for (const page of pages) {
+    if (typeof page.markdown !== 'string' || page.markdown.trim() === '') {
+      throw new Error(`llms.full: page "${page.title}" (${page.url}) has no markdown`)
+    }
+    lines.push('', `# ${page.title}`, '', `Source: ${resolveLlmsLinkUrl(page.url, siteUrl)}`, '', page.markdown.trim())
   }
 
   return lines.join('\n') + '\n'

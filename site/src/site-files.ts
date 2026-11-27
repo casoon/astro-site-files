@@ -1,5 +1,8 @@
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type {
   HumansOptions,
+  LlmsFullPage,
   LlmsOptions,
   RobotsOptions,
   SecurityOptions,
@@ -16,6 +19,26 @@ export const robots: RobotsOptions = {
   // Search engines and AI assistants may read and cite the docs; training crawlers may not.
   preset: 'citationFriendly',
 };
+
+// The Markdown pages of ../docs, the source of this site's documentation, for llms-full.txt.
+// MDX pages are left out: their imports mean nothing outside the site. Lines that only open or
+// close a theme component (`<Callout type="caution">`) are dropped; the text inside them stays.
+async function docsPages(): Promise<LlmsFullPage[]> {
+  const dir = '../docs';
+  const files = (await readdir(dir, { recursive: true })).filter((f) => f.endsWith('.md')).sort();
+  return Promise.all(
+    files.map(async (file) => {
+      const raw = await readFile(join(dir, file), 'utf8');
+      const title = raw.match(/^title:\s*(.+)$/m)?.[1];
+      if (!title) throw new Error(`docs/${file}: no title in the frontmatter`);
+      const path = file.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '/');
+      const markdown = raw
+        .replace(/^---\n[\s\S]*?\n---\n/, '')
+        .replace(/^<\/?[A-Z][^>]*>[ \t]*\n/gm, '');
+      return { title, url: `${home}docs/${path}`, markdown };
+    })
+  );
+}
 
 export const llms: LlmsOptions = {
   title: 'astro-site-files',
@@ -48,6 +71,7 @@ export const llms: LlmsOptions = {
       ],
     },
   ],
+  full: { sources: [docsPages] },
 };
 
 // On by default. Every page Astro builds is listed, with the base path applied.

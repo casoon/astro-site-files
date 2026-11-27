@@ -1,6 +1,6 @@
 import type { AstroLogger } from './astro.js'
 import { isRelativeLlmsUrl } from './llms.js'
-import type { HumansOptions, LlmsOptions, RobotsOptions, SecurityOptions } from './types.js'
+import type { HumansOptions, LlmsFullPage, LlmsOptions, RobotsOptions, SecurityOptions } from './types.js'
 
 export interface AuditIssue {
   level: 'info' | 'warn' | 'error'
@@ -115,6 +115,62 @@ export function auditLlms(options: LlmsOptions, siteUrl?: string): AuditIssue[] 
         rule: 'llms/relative-links',
         message: `llms.txt keeps ${relative.length} relative link${relative.length === 1 ? '' : 's'}: ${relative.join(', ')}`,
         help: 'Set Astro\'s `site` (or `sitemap.siteUrl`) so the integration can prefix them, or write absolute URLs — llms.txt is read without page context, so a relative link resolves nowhere.',
+      })
+    }
+  }
+
+  return issues
+}
+
+/** MDX module lines and JSX component tags: what `entry.body` of an .mdx file carries. */
+const MDX_SYNTAX = /^\s*(?:(?:import|export)\s|<[A-Z])/m
+
+/** Fenced code blocks: an `import` shown as an example there is content, not MDX. */
+const CODE_FENCE = /^(\s*)(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1\2[ \t]*$/gm
+
+/** A YAML frontmatter block at the very start, as a raw .md/.mdx file carries it. */
+const FRONTMATTER = /^\s*---\r?\n[\s\S]*?\r?\n---\s*(?:\r?\n|$)/
+
+export function auditLlmsFull(pages: LlmsFullPage[], siteUrl?: string): AuditIssue[] {
+  const issues: AuditIssue[] = []
+
+  if (pages.length === 0) {
+    issues.push({
+      level: 'warn',
+      rule: 'llms/full-no-pages',
+      message: 'llms-full.txt has no pages',
+      help: 'Add `pages` or `sources` to `llms.full`, or remove the option — the file holds only the llms.txt header otherwise.',
+    })
+  }
+
+  const frontmatter = pages.filter(p => FRONTMATTER.test(p.markdown)).map(p => p.url)
+  if (frontmatter.length > 0) {
+    issues.push({
+      level: 'warn',
+      rule: 'llms/full-frontmatter',
+      message: `llms-full.txt contains a frontmatter block in ${frontmatter.length} page${frontmatter.length === 1 ? '' : 's'}: ${frontmatter.join(', ')}`,
+      help: 'Remove the leading `---` block when reading the file in your source function; the page title is already written as a heading.',
+    })
+  }
+
+  const mdx = pages.filter(p => MDX_SYNTAX.test(p.markdown.replace(CODE_FENCE, ''))).map(p => p.url)
+  if (mdx.length > 0) {
+    issues.push({
+      level: 'warn',
+      rule: 'llms/full-mdx-syntax',
+      message: `llms-full.txt contains MDX imports, exports or component tags in ${mdx.length} page${mdx.length === 1 ? '' : 's'}: ${mdx.join(', ')}`,
+      help: 'The Markdown is written as given. Strip `import`/`export` lines and component tags in your source function, or pass the plain-Markdown variant of the page.',
+    })
+  }
+
+  if (!siteUrl) {
+    const relative = pages.map(p => p.url).filter(isRelativeLlmsUrl)
+    if (relative.length > 0) {
+      issues.push({
+        level: 'warn',
+        rule: 'llms/full-relative-links',
+        message: `llms-full.txt keeps ${relative.length} relative Source URL${relative.length === 1 ? '' : 's'}: ${relative.join(', ')}`,
+        help: 'Set Astro\'s `site` (or `sitemap.siteUrl`) so the integration can prefix them, or pass absolute URLs.',
       })
     }
   }

@@ -16,6 +16,7 @@ API site. Package page: [npm](https://www.npmjs.com/package/@casoon/astro-site-f
 | `default`, `siteFiles` | function | The Astro integration: `siteFiles(options?: SiteFilesOptions)` |
 | `renderRobotsTxt` | function | `(options, siteUrl?, sitemapFilename?) => string` |
 | `renderLlmsTxt` | function | `(options, siteUrl?) => string`; `siteUrl` resolves relative link URLs, `sources` are not resolved here |
+| `renderLlmsFullTxt` | function | `(options, pages, siteUrl?) => string`; throws on a page with empty `markdown` |
 | `renderSecurityTxt` | function | `(options) => string` |
 | `renderHumansTxt` | function | `(options) => string` |
 | `renderSitemapXml` | function | `(entries, comment?) => string` |
@@ -24,7 +25,7 @@ API site. Package page: [npm](https://www.npmjs.com/package/@casoon/astro-site-f
 | `deduplicateEntries` | function | Keeps the last entry per URL |
 | `renderRssFeed` | function | `(options, siteUrl, items) => string` |
 | `createRssRoute` | function | `GET` handler for an API route |
-| `auditRobots`, `auditLlms`, `auditSecurity`, `auditHumans`, `auditSitemap` | function | Return `AuditIssue[]` |
+| `auditRobots`, `auditLlms`, `auditLlmsFull`, `auditSecurity`, `auditHumans`, `auditSitemap` | function | Return `AuditIssue[]` |
 | `filterIssues` | function | Applies `AuditOptions` to a list of issues |
 | `defaultRegistry` | constant | The 25 built-in bots (`RegistryBot[]`) |
 | `REGISTRY_VERSION` | constant | Date of the last registry update, currently `2026-11-27` |
@@ -43,7 +44,7 @@ API site. Package page: [npm](https://www.npmjs.com/package/@casoon/astro-site-f
 | --- | --- |
 | `SiteFilesOptions` | The integration: `robots`, `llms`, `sitemap`, `rss`, `security`, `humans`, `audit`, `debug` |
 | `RobotsOptions`, `AgentRule`, `BotAction`, `BotCategory`, `RegistryBot`, `Preset` | [robots.txt](../../configuration/robots-txt/) |
-| `LlmsOptions`, `LlmsSection`, `LlmsLink`, `LlmsSource` | [llms.txt](../../configuration/llms-txt/) |
+| `LlmsOptions`, `LlmsSection`, `LlmsLink`, `LlmsSource`, `LlmsFullOptions`, `LlmsFullPage`, `LlmsFullSource` | [llms.txt](../../configuration/llms-txt/) |
 | `SitemapOptions`, `SitemapEntry`, `ResolvedSitemapEntry`, `SitemapSource`, `PriorityRule`, `ChangefreqRule`, `I18nOptions`, `Changefreq` | [sitemap.xml](../../configuration/sitemap-xml/) |
 | `RssConfig`, `RssItem` | [RSS feed](../../configuration/rss/) |
 | `SecurityOptions` | [security.txt](../../configuration/security-txt/) |

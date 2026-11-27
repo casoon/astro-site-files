@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderLlmsTxt } from './llms.js'
+import { renderLlmsFullTxt, renderLlmsTxt } from './llms.js'
 
 describe('renderLlmsTxt', () => {
   it('renders title as h1', () => {
@@ -108,5 +108,48 @@ describe('renderLlmsTxt', () => {
       sections: [{ title: 'S', links: [{ title: 'Home', url: '/' }] }],
     })
     expect(result).toContain('- [Home](/)')
+  })
+})
+
+describe('renderLlmsFullTxt', () => {
+  const head = { title: 'Docs', description: 'All of it.' }
+
+  it('writes the llms.txt header, then each page with its absolute Source URL', () => {
+    const result = renderLlmsFullTxt(
+      head,
+      [
+        { title: 'Intro', url: '/intro/', markdown: '\nHello.\n\n## Part\n\nMore.\n' },
+        { title: 'Ext', url: 'https://other.example/x/', markdown: 'Elsewhere.' },
+      ],
+      'https://example.com/app',
+    )
+    expect(result).toBe(
+      [
+        '# Docs',
+        '',
+        '> All of it.',
+        '',
+        '# Intro',
+        '',
+        'Source: https://example.com/app/intro/',
+        '',
+        'Hello.\n\n## Part\n\nMore.',
+        '',
+        '# Ext',
+        '',
+        'Source: https://other.example/x/',
+        '',
+        'Elsewhere.',
+        '',
+      ].join('\n'),
+    )
+  })
+
+  it('fails on a page without markdown instead of writing an empty section', () => {
+    expect(() => renderLlmsFullTxt(head, [{ title: 'Blank', url: '/b/', markdown: '  \n' }])).toThrow(
+      'llms.full: page "Blank" (/b/) has no markdown',
+    )
+    const missing = { title: 'Undef', url: '/u/' } as unknown as { title: string; url: string; markdown: string }
+    expect(() => renderLlmsFullTxt(head, [missing])).toThrow('has no markdown')
   })
 })

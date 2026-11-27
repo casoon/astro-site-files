@@ -9,6 +9,12 @@ may change existing behaviour.
 
 ### Added
 
+- **llms.txt:** option `llms.full` writes `llms-full.txt` with the full Markdown of the pages you
+  pass (`pages`, `sources`), under the `llms.txt` header; four audit rules report empty output,
+  leftover frontmatter, MDX syntax and unresolvable URLs. Details:
+  [llms-full.txt](https://casoon.github.io/astro-site-files/docs/configuration/llms-txt/#llms-fulltxt).
+- **Pages:** the project site publishes its own `llms-full.txt`, built from the Markdown pages in
+  `docs/`.
 - **Docs:** guide [AI crawlers, citations and training](https://casoon.github.io/astro-site-files/docs/guides/ai-crawlers/):
   which preset fits which goal, Google's separate controls, Common Crawl, archives and what
   robots.txt cannot enforce.

@@ -23,7 +23,7 @@ import type { ResolvedSitemapEntry, SitemapEntry, SitemapOptions } from './types
 const BUILT_IN_SKIP: RegExp[] = [
   /^\/sitemap(-index)?\.xml$/,
   /^\/robots\.txt$/,
-  /^\/llms\.txt$/,
+  /^\/llms(-full)?\.txt$/,
   /^\/rss\.xml$/,
   /^\/feed\.xml$/,
   // Anchored: `/blog/404-error-pages-guide/` is a content page, not an error page.

@@ -226,6 +226,7 @@ describe('sitemap built-in exclusions', () => {
         { pathname: '/404' },
         { pathname: '/_internal/thing/' },
         { pathname: '/robots.txt' },
+        { pathname: '/llms-full.txt' },
       ],
       dir: pathToFileURL(`${outDir}/`),
       logger: logger.logger,
@@ -236,10 +237,11 @@ describe('sitemap built-in exclusions', () => {
     expect(sitemap).not.toContain('/404')
     expect(sitemap).not.toContain('/_internal/')
     expect(sitemap).not.toContain('/robots.txt')
+    expect(sitemap).not.toContain('/llms-full.txt')
 
     const skipLog = logger.info.find(m => m.includes('excluded by built-in rules'))
     expect(skipLog).toBeDefined()
-    expect(skipLog).toContain('3 path(s)')
+    expect(skipLog).toContain('4 path(s)')
     expect(skipLog).toContain('/404')
   })
 
@@ -357,6 +359,53 @@ describe('llms sources', () => {
     expect(logger.info.every(m => !m.includes('no-sections'))).toBe(true)
     const llms = await readFile(join(outDir, 'llms.txt'), 'utf-8')
     expect(llms).toContain('## Blog')
+  })
+})
+
+describe('llms-full.txt', () => {
+  it('writes pages and source pages after the llms.txt header and reports the count', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({
+      robots: false,
+      sitemap: false,
+      llms: {
+        title: 'My Site',
+        full: {
+          pages: [{ title: 'Home', url: '/', markdown: 'Welcome.' }],
+          sources: [async () => [{ title: 'Post', url: '/blog/1/', markdown: 'Post body.' }]],
+        },
+      },
+    })
+
+    getHook(integration, 'astro:config:setup')({ config: { site: 'https://example.com', base: '/' } })
+    await getHook(integration, 'astro:build:done')({
+      pages: [],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    const full = await readFile(join(outDir, 'llms-full.txt'), 'utf-8')
+    expect(full.startsWith('# My Site\n')).toBe(true)
+    expect(full).toContain('# Home\n\nSource: https://example.com/\n\nWelcome.')
+    expect(full.indexOf('# Home')).toBeLessThan(full.indexOf('# Post'))
+    expect(full).toContain('Source: https://example.com/blog/1/')
+    expect(logger.info.some(m => m.includes('llms-full.txt generated (2 pages)'))).toBe(true)
+  })
+
+  it('writes no llms-full.txt without the full option', async () => {
+    const outDir = await mkdtemp(join(tmpdir(), 'astro-site-files-'))
+    const logger = createLogger()
+    const integration = siteFiles({ robots: false, sitemap: false, llms: { title: 'My Site' } })
+
+    getHook(integration, 'astro:config:setup')({ config: {} })
+    await getHook(integration, 'astro:build:done')({
+      pages: [],
+      dir: pathToFileURL(`${outDir}/`),
+      logger: logger.logger,
+    })
+
+    await expect(readFile(join(outDir, 'llms-full.txt'), 'utf-8')).rejects.toThrow()
   })
 })
 

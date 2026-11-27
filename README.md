@@ -1,7 +1,8 @@
 # @casoon/astro-site-files
 
 Astro integration that writes the files search engines, AI assistants and security researchers
-look for (`robots.txt`, `sitemap.xml`, `llms.txt`, `rss.xml`, `security.txt` and `humans.txt`)
+look for (`robots.txt`, `sitemap.xml`, `llms.txt` and `llms-full.txt`, `rss.xml`, `security.txt`
+and `humans.txt`)
 into the build output, from one typed configuration.
 
 **Documentation:** [casoon.github.io/astro-site-files](https://casoon.github.io/astro-site-files/) ·
@@ -15,6 +16,7 @@ into the build output, from one typed configuration.
 | `robots.txt` | `robots` | on: crawl rules from a preset, per-bot overrides, `Sitemap:` line |
 | `sitemap.xml` | `sitemap` | on: every built page, hreflang alternates, sitemap index for large sites |
 | `llms.txt` | `llms` | off, needs `title`: summary and links in the [llmstxt.org](https://llmstxt.org) format |
+| `llms-full.txt` | `llms.full` | off: the full Markdown of the pages you pass, under the `llms.txt` header |
 | `rss.xml` | `rss` | off, needs `title`, `description`, `getItems`: RSS 2.0 feed |
 | `.well-known/security.txt` | `security` | off, needs `contact`: disclosure contact per [RFC 9116](https://www.rfc-editor.org/rfc/rfc9116) |
 | `humans.txt` | `humans` | off: team and technology per [humanstxt.org](https://humanstxt.org) |

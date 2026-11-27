@@ -82,6 +82,22 @@ export interface LlmsSection {
 
 export type LlmsSource = () => LlmsSection | Promise<LlmsSection>
 
+/** One page in llms-full.txt: its full content as Markdown. */
+export interface LlmsFullPage {
+  title: string
+  url: string
+  markdown: string
+}
+
+export type LlmsFullSource = () => LlmsFullPage[] | Promise<LlmsFullPage[]>
+
+/** llms-full.txt — the full content of the listed pages, under the llms.txt header */
+export interface LlmsFullOptions {
+  pages?: LlmsFullPage[]
+  /** Async functions that return additional pages — appended after `pages` */
+  sources?: LlmsFullSource[]
+}
+
 export interface LlmsOptions {
   title: string
   description?: string
@@ -89,6 +105,8 @@ export interface LlmsOptions {
   sections?: LlmsSection[]
   /** Async functions that return additional sections — merged after `sections` */
   sources?: LlmsSource[]
+  /** Also write llms-full.txt with the full Markdown of these pages */
+  full?: LlmsFullOptions
 }
 
 export interface SecurityOptions {

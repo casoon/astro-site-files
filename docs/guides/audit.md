@@ -23,6 +23,10 @@ That line is from this site's own build: its security.txt has no policy page.
 | `llms/no-sections` | info | Neither `sections` nor `sources` |
 | `llms/sections-without-links` | info | Sections without any `links`, and no `sources` |
 | `llms/relative-links` | warn | Relative link URLs with no `site` or `sitemap.siteUrl` to resolve them against |
+| `llms/full-no-pages` | warn | `llms.full` is set, but `pages` and `sources` yield no page |
+| `llms/full-frontmatter` | warn | A page's Markdown still starts with a `---` frontmatter block |
+| `llms/full-mdx-syntax` | warn | A page's Markdown carries MDX `import`/`export` lines or component tags |
+| `llms/full-relative-links` | warn | Relative page URLs with no `site` or `sitemap.siteUrl` to resolve them against |
 | `security/contact-not-a-uri` | error | A `contact` value has no URI scheme |
 | `security/no-expires` | warn | No `expires` |
 | `security/invalid-expires` | error | `expires` is not a parseable date |

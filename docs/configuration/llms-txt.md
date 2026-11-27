@@ -43,6 +43,20 @@ interface LlmsLink {
 }
 
 type LlmsSource = () => LlmsSection | Promise<LlmsSection>
+
+interface LlmsFullOptions {
+  pages?: LlmsFullPage[]
+  /** Async functions that return additional pages, appended after `pages` */
+  sources?: LlmsFullSource[]
+}
+
+interface LlmsFullPage {
+  title: string
+  url: string
+  markdown: string
+}
+
+type LlmsFullSource = () => LlmsFullPage[] | Promise<LlmsFullPage[]>
 ```
 
 | Option | Rendered as |
@@ -52,6 +66,7 @@ type LlmsSource = () => LlmsSection | Promise<LlmsSection>
 | `details` | A plain paragraph |
 | `sections` | `## title` with a list of `[title](url): description` |
 | `sources` | Sections from code, appended after `sections` |
+| `full` | A second file, `llms-full.txt`, see [below](#llms-fulltxt) |
 
 ## Where the link URLs come from
 
@@ -141,7 +156,73 @@ siteFiles({
 `getCollection()` is not available in `astro:build:done`; read files directly. Links from
 `sources` are resolved against the site URL like the ones in `sections`.
 
+## llms-full.txt
+
+`llms.txt` names the pages that matter; `llms-full.txt` carries their content. It is a common
+companion convention, not part of the llmstxt.org format: one file someone can hand to an
+assistant or load into an editor's AI tool to give it a whole documentation set at once. Set
+`full` to write it next to `llms.txt`:
+
+```text
+# Example
+
+> An example website about TypeScript tooling.
+
+# Getting started
+
+Source: https://example.com/docs/start/
+
+Install the package, then …
+```
+
+The head is the same title, description and details as in `llms.txt`. Each page follows as
+`# title`, a `Source:` line and its Markdown. Relative URLs are resolved like the links in
+`llms.txt`. The Markdown is written exactly as you pass it: a page with empty `markdown` stops the
+build, because an empty section is almost always a mistake in the source function.
+
+The integration does not convert HTML. The content has to exist as Markdown, typically the files
+of a content collection. `getCollection()` is not available in `astro:build:done`, so read the
+files and remove their frontmatter:
+
+```ts
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+
+const dir = './src/content/docs'
+
+siteFiles({
+  llms: {
+    title: 'Example',
+    full: {
+      sources: [
+        async () => {
+          const files = (await readdir(dir)).filter((f) => f.endsWith('.md'))
+          return Promise.all(
+            files.map(async (file) => {
+              const raw = await readFile(join(dir, file), 'utf8')
+              const slug = file.replace(/\.md$/, '')
+              return {
+                title: raw.match(/^title:\s*(.+)$/m)?.[1] ?? slug,
+                url: `/docs/${slug}/`,
+                markdown: raw.replace(/^---\n[\s\S]*?\n---\n/, ''),
+              }
+            }),
+          )
+        },
+      ],
+    },
+  },
+})
+```
+
+`.mdx` files carry `import`/`export` lines and component tags that mean nothing outside the site.
+Strip them in the source function, or leave such pages out; the audit names every page that still
+has them. On a site with many long pages the file grows accordingly. Consider which pages belong
+in it, just as for `llms.txt`.
+
 ## Audit hints
 
 `llms/no-description`, `llms/no-sections` and `llms/sections-without-links` (all `info`), plus
-`llms/relative-links` (`warn`). See [build-time audit](../../guides/audit/).
+`llms/relative-links` (`warn`). For `llms-full.txt`: `llms/full-no-pages`,
+`llms/full-frontmatter`, `llms/full-mdx-syntax` and `llms/full-relative-links` (all `warn`). See
+[build-time audit](../../guides/audit/).

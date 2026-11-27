@@ -10,13 +10,13 @@ import {
   buildSiteWithBase,
   resolveSiteUrls,
 } from './astro.js'
-import { auditHumans, auditLlms, auditRobots, auditSecurity, reportIssues } from './audit.js'
+import { auditHumans, auditLlms, auditLlmsFull, auditRobots, auditSecurity, reportIssues } from './audit.js'
 import { writeSitemap } from './sitemap/build.js'
 import { renderRssFeed } from './rss.js'
 import type { SitemapOptions } from './sitemap/types.js'
-import type { HumansOptions, LlmsOptions, LlmsSection, RobotsOptions, SiteFilesOptions } from './types.js'
+import type { HumansOptions, LlmsFullPage, LlmsOptions, LlmsSection, RobotsOptions, SiteFilesOptions } from './types.js'
 import { renderRobotsTxt } from './robots.js'
-import { renderLlmsTxt } from './llms.js'
+import { renderLlmsFullTxt, renderLlmsTxt } from './llms.js'
 import { renderSecurityTxt } from './security.js'
 import { renderHumansTxt } from './humans.js'
 
@@ -122,6 +122,15 @@ async function writeLlms(
   await writeFile(join(outDir, 'llms.txt'), renderLlmsTxt(resolvedOpts, linkBase), 'utf-8')
   logger.info('llms.txt generated')
   reportIssues(logger, auditLlms(resolvedOpts, linkBase), options.audit)
+
+  if (!llmsOpts.full) return
+  const pages: LlmsFullPage[] = [...(llmsOpts.full.pages ?? [])]
+  for (const source of llmsOpts.full.sources ?? []) {
+    pages.push(...(await source()))
+  }
+  await writeFile(join(outDir, 'llms-full.txt'), renderLlmsFullTxt(resolvedOpts, pages, linkBase), 'utf-8')
+  logger.info(`llms-full.txt generated (${pages.length} page${pages.length === 1 ? '' : 's'})`)
+  reportIssues(logger, auditLlmsFull(pages, linkBase), options.audit)
 }
 
 async function writeSecurity(
