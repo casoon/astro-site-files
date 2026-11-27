@@ -9,8 +9,21 @@ import type { AstroIntegration } from 'astro';
 
 const MARKER = /%%generated-file:([^%]+)%%/g;
 
-/** Marker for a file in the build output, e.g. `generatedFile('robots.txt')`. */
-export const generatedFile = (path: string) => `%%generated-file:${path}%%`;
+/**
+ * Marker for a file in the build output, e.g. `generatedFile('robots.txt')`. With `lines`, only
+ * the first lines are inlined, followed by a line with `…`.
+ */
+export const generatedFile = (path: string, lines?: number) =>
+  `%%generated-file:${path}${lines ? `|${lines}` : ''}%%`;
+
+/** The marker's file content, cut to its line limit when it has one. */
+function excerpt(content: string, lines: string | undefined): string {
+  if (!lines) return content;
+  const all = content.split('\n');
+  const limit = Number(lines);
+  if (all.length <= limit) return content;
+  return [...all.slice(0, limit), '…'].join('\n');
+}
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -36,10 +49,16 @@ export default function inlineGeneratedFiles(): AstroIntegration {
 
         for (const file of await htmlFiles(outDir)) {
           const html = await readFile(file, 'utf8');
-          const paths = [...new Set([...html.matchAll(MARKER)].map((match) => match[1]))];
+          const paths = [...new Set([...html.matchAll(MARKER)].map((match) => match[1].split('|')[0]))];
           if (paths.length === 0) continue;
           const contents = new Map(await Promise.all(paths.map(async (p) => [p, await load(p)] as const)));
-          await writeFile(file, html.replace(MARKER, (_, path: string) => contents.get(path) as string));
+          await writeFile(
+            file,
+            html.replace(MARKER, (_, marker: string) => {
+              const [path, lines] = marker.split('|');
+              return excerpt(contents.get(path) as string, lines);
+            })
+          );
         }
         logger.info(`inlined ${[...cache.keys()].join(', ')}`);
       },

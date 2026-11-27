@@ -1,7 +1,7 @@
 ---
 title: Build-time audit
 description: Sixteen checks that report configuration problems in the build log, and how to silence them.
-order: 2
+order: 3
 ---
 
 After writing each file, the integration checks its configuration and logs what it finds with a

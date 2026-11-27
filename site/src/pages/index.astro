@@ -1,19 +1,23 @@
 ---
 import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { defaultRegistry, renderRobotsTxt, type Preset } from '@casoon/astro-site-files';
 import {
   Badge,
   Badges,
-  BuildOutput,
   CallToAction,
   CodeBlock,
-  Facts,
+  Compare,
   Faq,
   Features,
   FileSet,
+  Flow,
   Hero,
   Install,
   Quickstart,
   ReleaseHighlights,
+  Spotlight,
+  StatBand,
   Terminal,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
@@ -29,6 +33,62 @@ const latestRelease = pages.changelog
     )
   : undefined;
 
+// ── Figures from the package source, so they cannot drift from the release ──────────────────
+const repoRoot = resolve(process.cwd(), '..');
+const source = (path: string) => readFile(join(repoRoot, path), 'utf8');
+
+const manifest = JSON.parse(await source('package.json'));
+const runtimeDependencies = Object.keys(manifest.dependencies ?? {}).length;
+const fileWriters = (await source('src/integration.ts')).match(/await write\w+\(outDir/g)?.length;
+if (!fileWriters) throw new Error('src/integration.ts: no file writers found');
+const auditRules = new Set(
+  [await source('src/audit.ts'), await source('src/sitemap/audit.ts')].flatMap((code) =>
+    [...code.matchAll(/rule: '([a-z]+\/[a-z-]+)'/g)].map((m) => m[1])
+  )
+).size;
+if (!auditRules) throw new Error('src/audit.ts: no audit rules found');
+
+// ── Preset matrix, rendered with the package itself ──────────────────────────────────────────
+// Each row names real crawlers; every cell is read from the robots.txt the preset produces.
+// A row whose crawlers end up with different verdicts fails the build instead of guessing.
+const presetColumns: { preset: Preset; label: string }[] = [
+  { preset: 'seoOnly', label: 'Search only' },
+  { preset: 'blockTraining', label: 'No training at all' },
+  { preset: 'citationFriendly', label: 'Cite, no pure training' },
+  { preset: 'openToAi', label: 'Everything open' },
+];
+const crawlerRows = [
+  { topic: 'Search engines', bots: ['Googlebot', 'Bingbot'] },
+  { topic: 'AI search and live answers', bots: ['OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'PerplexityBot'] },
+  { topic: 'Answers and training in one', bots: ['ClaudeBot', 'Google-Extended', 'meta-externalagent'] },
+  { topic: 'Training only', bots: ['GPTBot', 'CCBot', 'Applebot-Extended'] },
+  { topic: 'Unverified AI scrapers', bots: ['Diffbot', 'FirecrawlAgent'] },
+  { topic: 'Web archives', bots: ['ia_archiver', 'archive.org_bot'] },
+];
+
+/** The verdict robots.txt gives one crawler: its own group, else `User-agent: *`. */
+function allows(robots: string, userAgent: string): boolean {
+  const groups = robots.split('\n\n').map((block) => block.split('\n'));
+  const own = groups.find((lines) => lines.includes(`User-agent: ${userAgent}`));
+  const group = own ?? groups.find((lines) => lines.includes('User-agent: *'));
+  if (!group) throw new Error(`robots.txt has no group for ${userAgent} and no global group`);
+  return !group.includes('Disallow: /');
+}
+
+const known = new Set(defaultRegistry.flatMap((bot) => bot.userAgents));
+const presetRows = crawlerRows.map(({ topic, bots }) => {
+  for (const bot of bots) if (!known.has(bot)) throw new Error(`${bot} is not in the bot registry`);
+  return {
+    topic: `${topic} (${bots.join(', ')})`,
+    cells: presetColumns.map(({ preset }) => {
+      const robots = renderRobotsTxt({ preset });
+      const verdicts = new Set(bots.map((bot) => allows(robots, bot)));
+      if (verdicts.size !== 1) throw new Error(`${preset}: "${topic}" crawlers get different verdicts`);
+      return verdicts.has(true) ? '**Allowed**' : 'Blocked';
+    }),
+  };
+});
+
 const config = `import { defineConfig } from 'astro/config'
 import siteFiles from '@casoon/astro-site-files'
 
@@ -36,7 +96,7 @@ export default defineConfig({
   site: 'https://example.com',
   integrations: [
     siteFiles({
-      robots: { preset: 'seoOnly' },
+      robots: { preset: 'citationFriendly' },
       llms: { title: 'Example', description: 'An example website.' },
       security: { contact: 'mailto:security@example.com', expires: '2027-03-01T00:00:00.000Z' },
       humans: { team: [{ name: 'Alice', role: 'Development' }] },
@@ -46,11 +106,11 @@ export default defineConfig({
 
 // The hero shows the options object alone; the quickstart below has the whole file.
 const heroConfig = `siteFiles({
-  robots: { preset: 'seoOnly' },
-  llms: { title: 'Example', description: 'An example website.' },
+  robots: { preset: 'citationFriendly' },
   sitemap: {},
-  security: { contact: 'mailto:security@example.com' },
-  humans: { team: [{ name: 'Alice', role: 'Development' }] },
+  llms: { title: 'Example', description: 'A demo.' },
+  security: { contact: 'mailto:sec@example.com' },
+  humans: { team: [{ name: 'Alice' }] },
 })`;
 
 // Every file this site's own build wrote, in the order the documentation introduces them.
@@ -67,8 +127,8 @@ const generated = [
   <Hero
     layout="stack"
     command="astro build"
-    title="One typed config, five generated files."
-    lead="@casoon/astro-site-files writes robots.txt, llms.txt, sitemap.xml, security.txt and humans.txt into the build output when astro build runs. The files below are the ones this build wrote."
+    title="Control what search engines and AI see of your site."
+    lead="robots.txt, sitemap.xml and llms.txt, plus security.txt and humans.txt: written into dist/ on every astro build, from one typed config. Below are the files this site's own build wrote."
   >
     <CodeBlock slot="source" code={heroConfig} lang="ts" title="astro.config.ts" label="TypeScript" />
     <FileSet slot="output" files={generated}>
@@ -92,44 +152,111 @@ const generated = [
     </Badges>
   </Hero>
 
-  <Facts
+  <StatBand
     items={[
-      { value: '6', label: 'file types written at build time' },
-      { value: '64', label: 'crawlers in the built-in bot registry' },
-      { value: '162', label: 'tests in the suite' },
-      { value: '0', label: 'runtime dependencies' },
+      { value: String(fileWriters), label: 'file types written at build time' },
+      { value: String(defaultRegistry.length), label: 'crawlers in the bot registry' },
+      { value: String(auditRules), label: 'audit rules in the build log' },
+      { value: String(runtimeDependencies), label: 'runtime dependencies' },
     ]}
   />
+
+  <Compare
+    title="Choose who may read, cite and train on your site"
+    lead="A preset turns one decision into a rule for every crawler the registry knows. Each cell below is read from the robots.txt that preset produces with this release. `lockdown` blocks everything, search engines included; single bots and whole groups can be overridden."
+    topicLabel="Crawler group"
+    columns={presetColumns.map(({ preset, label }) => ({ title: preset, label }))}
+    rows={presetRows}
+    link={{ label: 'Which preset fits which goal', href: url('docs/guides/ai-crawlers/') }}
+  />
+
+  <Flow
+    eyebrow="How it works"
+    title="From your config to files in dist/"
+    lead="The integration runs once, after Astro has built every page. Nothing is served at runtime."
+    stages={[
+      {
+        label: 'Configure',
+        artifact: 'astro.config.mjs',
+        title: 'Typed options',
+        body: 'One options object per file. robots.txt and sitemap.xml are on by default, the others once you configure them.',
+      },
+      {
+        label: 'Build',
+        artifact: 'astro build',
+        title: 'Astro renders',
+        body: 'Pages, redirects and i18n fallback routes are collected while Astro builds, with `site` and `base` from your config.',
+      },
+      {
+        label: 'Write',
+        artifact: 'dist/',
+        title: 'Files from the output',
+        body: 'The sitemap lists what was actually built; robots.txt then points at the sitemap file that was written.',
+      },
+      {
+        label: 'Check',
+        artifact: 'build log',
+        title: 'Audit',
+        body: 'Rules warn about what would hurt in production, such as an expired security.txt or legal pages blocked for crawlers.',
+      },
+    ]}
+  />
+
+  <Spotlight
+    eyebrow="sitemap.xml"
+    title="A sitemap of what was really built"
+    lead="**Pages come from the build output, not from a route list you maintain.** What Astro did not build cannot end up in the sitemap."
+    points={[
+      '**Redirects and pages marked noindex are left out**, so the sitemap never lists a URL a crawler should not index.',
+      '**hreflang alternates follow your Astro i18n config**, fallback routes included.',
+      '**Large sites switch to a sitemap index** above 50,000 URLs, and robots.txt references whichever file was written.',
+    ]}
+    links={[
+      { label: 'sitemap.xml', href: url('docs/configuration/sitemap-xml/') },
+      { label: 'site URL and base', href: url('docs/guides/site-url-and-base/') },
+    ]}
+  >
+    <Terminal title="dist/sitemap.xml" dots>
+      <Fragment set:html={generatedFile('sitemap.xml', 16)} />
+    </Terminal>
+  </Spotlight>
 
   <Features
+    layout="grid"
+    heading="The other files, and what keeps them right"
     items={[
       {
-        title: 'robots.txt from presets',
-        body: 'Five presets from seoOnly to lockdown decide per bot group; single bots and whole groups can be overridden. Global rules are repeated in every allow group, because a crawler obeys only its most specific group.',
+        icon: 'L',
+        title: 'llms.txt for AI assistants',
+        body: 'Title, summary and link sections in the llmstxt.org format. Relative links resolve against site and base, and sections can be filled from your content at build time.',
       },
       {
-        title: 'Sitemap from the build output',
-        body: 'Pages come from what Astro built. Redirect and noindex pages are dropped, hreflang alternates follow the Astro i18n config, and more than 50,000 URLs switch to a sitemap index.',
+        icon: 'S',
+        title: 'security.txt by RFC 9116',
+        body: 'Written to .well-known/ with contact, expiry, policy and preferred languages. The audit warns when the file has expired or carries no expiry date.',
       },
       {
+        icon: 'H',
+        title: 'humans.txt',
+        body: 'Team, thanks, technology and a note in the humanstxt.org layout, from the same config as everything else.',
+      },
+      {
+        icon: 'R',
+        title: 'RSS feed',
+        body: 'An RSS 2.0 feed written at build time, or served from an API route when the feed has to stay current.',
+      },
+      {
+        icon: 'T',
         title: 'Typed per file',
-        body: 'Each file has its own options interface (RobotsOptions, LlmsOptions, SitemapOptions, SecurityOptions, HumansOptions), exported for your own config modules.',
+        body: 'RobotsOptions, LlmsOptions, SitemapOptions, SecurityOptions and HumansOptions are exported for your own config modules.',
       },
       {
+        icon: '!',
         title: 'Audited during the build',
-        body: '15 audit rules report problems in the build log, among them an expired security.txt, a contact without URI scheme and legal pages blocked in robots.txt.',
+        body: `${auditRules} rules report problems in the build log, among them a contact without URI scheme and unresolvable links in llms.txt.`,
       },
     ]}
   />
-
-  <BuildOutput
-    caption="Generated by @casoon/astro-site-files while this site was built, from the configuration in site/src/site-files.ts. The showcase shows all five files."
-    file="dist/humans.txt"
-  >
-    <Terminal>
-      <Fragment set:html={generatedFile('humans.txt')} />
-    </Terminal>
-  </BuildOutput>
 
   <Quickstart
     lead="Three steps from install to generated files. The full walkthrough lives in the documentation."
@@ -151,12 +278,12 @@ const generated = [
         a: 'robots.txt and sitemap.xml are generated by default; llms.txt, rss.xml, security.txt and humans.txt are opt-in and only written once their option is configured.',
       },
       {
-        q: 'Does robots.txt actually stop AI crawlers from scraping my site?',
-        a: 'No — robots.txt is voluntary, and many scrapers since 2025-2026 no longer identify themselves as bots. Blocking crawlers that do comply still requires pairing a preset like blockTraining or lockdown with real infrastructure such as rate limiting or bot detection.',
+        q: 'Which preset keeps my site visible in ChatGPT, Gemini and Claude?',
+        a: 'citationFriendly allows every crawler that answers prompts or builds an AI search index, including Google-Extended, which the Gemini app needs to cite you, and blocks crawlers whose only purpose is training. openToAi also allows training, so your content can become part of a model’s general knowledge. AI Overviews in Google Search follow Googlebot, not these rules.',
       },
       {
-        q: 'What does the 0.6.0 registry update change for an existing config?',
-        a: 'The bot registry grew from 25 to 64 crawlers, and the citationFriendly and blockTraining presets now derive their training rules from the registry categories instead of a hand-maintained bot list, so newly added bots are covered automatically.',
+        q: 'Does robots.txt actually stop AI crawlers from scraping my site?',
+        a: 'No — robots.txt is voluntary, and many scrapers since 2025-2026 no longer identify themselves as bots. Blocking crawlers that do comply still requires pairing a preset like blockTraining or lockdown with real infrastructure such as rate limiting or bot detection.',
       },
       {
         q: 'Does this replace @casoon/astro-crawler-policy or @casoon/astro-sitemap?',
@@ -171,3 +298,11 @@ const generated = [
     label="Read the quickstart"
   />
 </Base>
+
+<style>
+  /* Links inside changelog entries need more than colour to stand out from the text. */
+  :global(.release-highlights li a) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+</style>

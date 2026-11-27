@@ -28,8 +28,9 @@ renderer functions also work without it, see the [API overview](reference/api/).
 - **Getting started**: [install](getting-started/installation/) the package and generate the
   first files with the [quickstart](getting-started/quickstart/).
 - **Configuration**: one page per file with its options interface, defaults and real output.
-- **Guides**: [site URL and base path](guides/site-url-and-base/) and the
-  [build-time audit](guides/audit/).
+- **Guides**: [site URL and base path](guides/site-url-and-base/),
+  [AI crawlers, citations and training](guides/ai-crawlers/), the [build-time audit](guides/audit/)
+  and [migrating from astro-crawler-policy](guides/migrate-from-crawler-policy/).
 - **Reference**: the [exports and types](reference/api/) at a glance.
 
 This site uses the integration itself. The [showcase](../showcase/) shows the five files it

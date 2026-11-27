@@ -7,6 +7,19 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+### Added
+
+- **Docs:** guide [AI crawlers, citations and training](https://casoon.github.io/astro-site-files/docs/guides/ai-crawlers/):
+  which preset fits which goal, Google's separate controls, Common Crawl, archives and what
+  robots.txt cannot enforce.
+
+### Changed
+
+- **Pages:** the start page compares the presets crawler group by crawler group, computed from
+  the robots.txt each preset produces, and shows how the integration works and what the sitemap
+  is built from.
+- **Docs:** the README is a short overview that links the documentation instead of repeating it.
+
 ## [0.8.0] - 2026-11-27
 
 ### Added

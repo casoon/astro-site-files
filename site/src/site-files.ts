@@ -30,6 +30,7 @@ export const llms: LlmsOptions = {
         { title: 'Installation', url: `${home}docs/getting-started/installation/` },
         { title: 'Quickstart', url: `${home}docs/getting-started/quickstart/` },
         { title: 'robots.txt', url: `${home}docs/configuration/robots-txt/`, description: 'Presets, bot groups and path rules' },
+        { title: 'AI crawlers, citations and training', url: `${home}docs/guides/ai-crawlers/`, description: 'Which preset fits which goal' },
         { title: 'llms.txt', url: `${home}docs/configuration/llms-txt/` },
         { title: 'sitemap.xml', url: `${home}docs/configuration/sitemap-xml/`, description: 'Discovery, priorities, i18n and sources' },
         { title: 'RSS feed', url: `${home}docs/configuration/rss/` },

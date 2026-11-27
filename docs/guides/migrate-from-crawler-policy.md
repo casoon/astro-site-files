@@ -1,7 +1,7 @@
 ---
 title: Migrating from astro-crawler-policy
 description: "Replace crawlerPolicy({ preset }) with siteFiles({ robots: { preset } }) in three steps, and what no longer exists."
-order: 3
+order: 4
 ---
 
 `@casoon/astro-crawler-policy` is archived. Its robots.txt and llms.txt features live on in this
