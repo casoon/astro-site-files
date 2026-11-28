@@ -64,8 +64,8 @@ const presetColumns: { preset: Preset; label: string }[] = [
 const crawlerRows = [
   { topic: 'Search engines', bots: ['Googlebot', 'Bingbot'] },
   { topic: 'AI search and live answers', bots: ['OAI-SearchBot', 'ChatGPT-User', 'Claude-SearchBot', 'PerplexityBot'] },
-  { topic: 'Answers and training in one', bots: ['ClaudeBot', 'Google-Extended', 'meta-externalagent'] },
-  { topic: 'Training only', bots: ['GPTBot', 'CCBot', 'Applebot-Extended'] },
+  { topic: 'Answers and training in one', bots: ['Google-Extended', 'meta-externalagent'] },
+  { topic: 'Training only', bots: ['GPTBot', 'ClaudeBot', 'CCBot', 'Applebot-Extended'] },
   { topic: 'Unverified AI scrapers', bots: ['Diffbot', 'FirecrawlAgent'] },
   { topic: 'Web archives', bots: ['ia_archiver', 'archive.org_bot'] },
 ];
@@ -131,8 +131,8 @@ const generated = [
   <Hero
     layout="stack"
     command="astro build"
-    title="Control what search engines and AI see of your site."
-    lead="robots.txt, sitemap.xml and llms.txt, plus security.txt and humans.txt: written into dist/ on every astro build, from one typed config. Below are the files this site's own build wrote."
+    title="Every file Google and AI look for, built without mistakes."
+    lead="Not just a sitemap: one plugin writes robots.txt, sitemap.xml, llms.txt, RSS, security.txt and more on every astro build, straight from your real pages, and checks them before they go live. Below are the files this site's own build wrote."
   >
     <CodeBlock slot="source" code={heroConfig} lang="ts" title="astro.config.ts" label="TypeScript" />
     <FileSet slot="output" files={generated}>
@@ -162,6 +162,70 @@ const generated = [
       { value: String(defaultRegistry.length), label: 'crawlers in the bot registry' },
       { value: String(auditRules), label: 'audit rules in the build log' },
       { value: String(runtimeDependencies), label: 'runtime dependencies' },
+    ]}
+  />
+
+  <Features
+    layout="grid"
+    heading="Much more than a sitemap tool"
+    items={[
+      {
+        icon: 'S',
+        title: 'Sitemap',
+        body: 'Tells Google and Bing which pages exist. Always matches what you actually published, in every language.',
+      },
+      {
+        icon: 'R',
+        title: 'robots.txt',
+        body: 'Decide in one word who may read your site: search engines, AI assistants, AI training. 5 ready-made presets.',
+      },
+      {
+        icon: 'L',
+        title: 'llms.txt',
+        body: 'A short, clear summary of your site that ChatGPT, Claude and other AI tools can read and cite.',
+      },
+      {
+        icon: 'F',
+        title: 'llms-full.txt',
+        body: 'Your full content as clean text, so AI tools get the details right instead of guessing.',
+      },
+      {
+        icon: 'N',
+        title: 'RSS feed',
+        body: 'Readers and news apps pick up new posts automatically.',
+      },
+      {
+        icon: '@',
+        title: 'security.txt',
+        body: 'Shows people who find a security problem how to reach you, in the official standard format.',
+      },
+      {
+        icon: 'H',
+        title: 'humans.txt',
+        body: 'Credits the people and tools behind the site.',
+      },
+    ]}
+  />
+
+  <Features
+    heading="Clean files, every build"
+    items={[
+      {
+        title: 'Built from your real site',
+        body: 'Everything is generated from the pages Astro actually built. No lists to maintain by hand, no forgotten or dead pages.',
+      },
+      {
+        title: 'Nothing made up',
+        body: 'Redirects, hidden and duplicate pages stay out. Dates only appear when your page really has one.',
+      },
+      {
+        title: 'Checked before it goes live',
+        body: `${auditRules} built-in checks warn you in the build log, for example about an expired security contact or legal pages that search engines cannot see.`,
+      },
+      {
+        title: 'Set up once, then forget it',
+        body: `One config, ${runtimeDependencies} extra dependencies, nothing running on your server. Every build writes fresh files.`,
+      },
     ]}
   />
 
@@ -225,43 +289,6 @@ const generated = [
     </Terminal>
   </Spotlight>
 
-  <Features
-    layout="grid"
-    heading="The other files, and what keeps them right"
-    items={[
-      {
-        icon: 'L',
-        title: 'llms.txt and llms-full.txt',
-        body: 'Title, summary and link sections in the llmstxt.org format, plus an optional llms-full.txt with the full Markdown of your pages. Relative links resolve against site and base.',
-      },
-      {
-        icon: 'S',
-        title: 'security.txt by RFC 9116',
-        body: 'Written to .well-known/ with contact, expiry, policy and preferred languages. The audit warns when the file has expired or carries no expiry date.',
-      },
-      {
-        icon: 'H',
-        title: 'humans.txt',
-        body: 'Team, thanks, technology and a note in the humanstxt.org layout, from the same config as everything else.',
-      },
-      {
-        icon: 'R',
-        title: 'RSS feed',
-        body: 'An RSS 2.0 feed written at build time, or served from an API route when the feed has to stay current.',
-      },
-      {
-        icon: 'T',
-        title: 'Typed per file',
-        body: 'RobotsOptions, LlmsOptions, SitemapOptions, SecurityOptions and HumansOptions are exported for your own config modules.',
-      },
-      {
-        icon: '!',
-        title: 'Audited during the build',
-        body: `${auditRules} rules report problems in the build log, among them a contact without URI scheme and unresolvable links in llms.txt.`,
-      },
-    ]}
-  />
-
   <Quickstart
     lead="Three steps from install to generated files. The full walkthrough lives in the documentation."
     steps={[
@@ -297,7 +324,7 @@ const generated = [
   />
 
   <CallToAction
-    title="Five generated files in three steps."
+    title={`${fileNames.length} files, one config, three steps.`}
     href={url('docs/getting-started/quickstart/')}
     label="Read the quickstart"
   />

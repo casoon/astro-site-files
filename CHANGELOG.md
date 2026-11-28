@@ -7,6 +7,16 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+### Changed
+
+- **Pages:** the start page says in plain words what the plugin does: one card per generated file
+  and four points on why the files stay correct, right below the hero.
+
+### Fixed
+
+- **Pages:** the preset comparison lists `ClaudeBot` under training-only crawlers, which it is
+  since its reclassification; the start page failed to build before.
+
 ## [0.9.0] - 2026-11-27
 
 ### Added
