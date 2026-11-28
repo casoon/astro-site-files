@@ -26,9 +26,9 @@ export interface I18nOptions {
 
 export interface ResolvedSitemapEntry {
   loc: string
-  lastmod: string
-  priority: number
-  changefreq: Changefreq
+  lastmod?: string
+  priority?: number
+  changefreq?: Changefreq
   links?: HreflangLink[]
 }
 
@@ -100,6 +100,16 @@ export interface SitemapOptions {
    * Default: `true` — submitting them makes Search Console report an error.
    */
   excludeNoindex?: boolean
+  /**
+   * Drop pages whose `<link rel="canonical">` points to a different URL.
+   * Default: `true` — Google recommends listing only canonical URLs in sitemaps.
+   */
+  excludeNonCanonical?: boolean
+  /**
+   * Emit `<changefreq>` and `<priority>` tags (ignored by Google).
+   * Default: `true` for backwards compatibility; set `false` for minimal Google-first sitemaps.
+   */
+  includeDeprecatedTags?: boolean
   priority?: PriorityRule[]
   changefreq?: ChangefreqRule[]
   /**

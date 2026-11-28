@@ -17,6 +17,7 @@ export const REGISTRY_VERSION = '2026-11-27'
 export const defaultRegistry: RegistryBot[] = [
   // ── Search engines ──────────────────────────────────────────────────────────
   { id: 'Googlebot',        provider: 'Google',        userAgents: ['Googlebot'],        categories: ['search'],                       verified: true },
+  { id: 'GoogleOther',      provider: 'Google',        userAgents: ['GoogleOther'],      categories: ['search'],                       verified: true },
   { id: 'Bingbot',          provider: 'Microsoft',     userAgents: ['Bingbot'],          categories: ['search'],                       verified: true },
   { id: 'DuckDuckBot',      provider: 'DuckDuckGo',    userAgents: ['DuckDuckBot'],      categories: ['search'],                       verified: true },
   { id: 'Applebot',         provider: 'Apple',         userAgents: ['Applebot'],         categories: ['search'],                       verified: true },
@@ -32,7 +33,9 @@ export const defaultRegistry: RegistryBot[] = [
   { id: 'OAI-AdsBot',       provider: 'OpenAI',        userAgents: ['OAI-AdsBot'],       categories: ['ai-input'],                     verified: true },
 
   // ── Anthropic ───────────────────────────────────────────────────────────────
-  { id: 'ClaudeBot',        provider: 'Anthropic',     userAgents: ['ClaudeBot'],        categories: ['ai-input', 'ai-training'],      verified: true },
+  // Anthropic separates training (ClaudeBot), search indexing (Claude-SearchBot)
+  // and user-triggered live fetches (Claude-User).
+  { id: 'ClaudeBot',        provider: 'Anthropic',     userAgents: ['ClaudeBot'],        categories: ['ai-training'],                  verified: true },
   { id: 'Claude-User',      provider: 'Anthropic',     userAgents: ['Claude-User'],      categories: ['ai-input'],                     verified: true },
   { id: 'Claude-SearchBot', provider: 'Anthropic',     userAgents: ['Claude-SearchBot'], categories: ['ai-search'],                    verified: true },
   // Claude-Web and anthropic-ai are no longer documented by Anthropic — kept so

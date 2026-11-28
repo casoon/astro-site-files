@@ -100,11 +100,19 @@ export function resolveEntry(
   }
   const urlPath = base ? loc.replace(base, '') || '/' : loc
   const canonicalPath = stripLocalePrefix(urlPath, options.i18n)
+  const includeDeprecated = options.includeDeprecatedTags !== false
   return {
     loc,
-    lastmod: entry.lastmod ?? TODAY,
-    priority: entry.priority ?? resolvePriority(urlPath, canonicalPath, options),
-    changefreq: entry.changefreq ?? resolveChangefreq(urlPath, canonicalPath, options),
+    ...(entry.lastmod ? { lastmod: entry.lastmod } : {}),
+    ...(includeDeprecated
+      ? {
+          priority: entry.priority ?? resolvePriority(urlPath, canonicalPath, options),
+          changefreq: entry.changefreq ?? resolveChangefreq(urlPath, canonicalPath, options),
+        }
+      : {
+          ...(entry.priority !== undefined ? { priority: entry.priority } : {}),
+          ...(entry.changefreq ? { changefreq: entry.changefreq } : {}),
+        }),
   }
 }
 

@@ -33,9 +33,9 @@ export function renderSitemapXml(entries: ResolvedSitemapEntry[], comment?: stri
   for (const entry of entries) {
     lines.push('  <url>')
     lines.push(`    <loc>${escapeXml(entry.loc)}</loc>`)
-    lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
-    lines.push(`    <changefreq>${escapeXml(entry.changefreq)}</changefreq>`)
-    lines.push(`    <priority>${formatPriority(entry.priority)}</priority>`)
+    if (entry.lastmod) lines.push(`    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`)
+    if (entry.changefreq) lines.push(`    <changefreq>${escapeXml(entry.changefreq)}</changefreq>`)
+    if (entry.priority !== undefined) lines.push(`    <priority>${formatPriority(entry.priority)}</priority>`)
     if (entry.links) {
       for (const link of entry.links) {
         lines.push(`    <xhtml:link rel="alternate" hreflang="${escapeXml(link.hreflang)}" href="${escapeXml(link.href)}"/>`)

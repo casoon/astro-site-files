@@ -69,8 +69,23 @@ function compileRegistryRules(options: RobotsOptions, preset: PresetConfig): Age
  * Disallow blocks stay bare `Disallow: /` — a global `Allow:` must not punch a
  * hole into a bot that was deliberately blocked outright.
  */
+function formatContentSignal(signal: RobotsOptions['contentSignal']): string | undefined {
+  if (!signal) return undefined
+  if (typeof signal === 'string') return signal.trim() || undefined
+  const parts: string[] = []
+  if (signal.aiTrain) parts.push(`ai-train=${signal.aiTrain}`)
+  if (signal.search) parts.push(`search=${signal.search}`)
+  if (signal.aiInput) parts.push(`ai-input=${signal.aiInput}`)
+  return parts.length > 0 ? parts.join(', ') : undefined
+}
+
 function allowRule(userAgent: string | string[], options: RobotsOptions): AgentRule {
-  const rule: AgentRule = { userAgent, allow: ['/', ...(options.allow ?? [])] }
+  // Under RFC 9309 §2.2.2 an equal-length `Allow: /` beats `Disallow: /`, so
+  // do not inject `Allow: /` when the user explicitly disallowed `/`.
+  const hasRootDisallow = options.disallow?.includes('/') ?? false
+  const allowPaths = hasRootDisallow ? [...(options.allow ?? [])] : ['/', ...(options.allow ?? [])]
+  const rule: AgentRule = { userAgent }
+  if (allowPaths.length) rule.allow = allowPaths
   if (options.disallow?.length) rule.disallow = options.disallow
   if (options.crawlDelay !== undefined) rule.crawlDelay = options.crawlDelay
   return rule
@@ -111,6 +126,10 @@ export function renderRobotsTxt(
   }
   if (options.crawlDelay !== undefined) {
     lines.push(`Crawl-delay: ${options.crawlDelay}`)
+  }
+  const contentSignal = formatContentSignal(options.contentSignal)
+  if (contentSignal) {
+    lines.push(`Content-Signal: ${contentSignal}`)
   }
 
   const allAgents = [...compileRegistryRules(options, preset), ...(options.agents ?? [])]

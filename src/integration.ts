@@ -90,7 +90,7 @@ async function writeRobots(
   const siteUrl = robotsHost ? buildSiteWithBase(robotsHost, astroConfig?.base) : undefined
   await writeFile(join(outDir, 'robots.txt'), renderRobotsTxt(robotsOpts, siteUrl, sitemapFilename), 'utf-8')
   logger.info('robots.txt generated')
-  reportIssues(logger, auditRobots(robotsOpts), options.audit)
+  reportIssues(logger, auditRobots(robotsOpts, { siteUrl, hasLlms: Boolean(options.llms) }), options.audit)
 }
 
 async function writeLlms(

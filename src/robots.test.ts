@@ -290,4 +290,25 @@ describe('training rules are derived from categories, not a hand-kept bot list',
     const result = renderRobotsTxt({ preset: 'blockTraining', bots: { GPTBot: 'allow' } })
     expect(blockFor(result, 'GPTBot')).toContain('Allow: /')
   })
+
+  it('citationFriendly blocks ClaudeBot (training) while allowing Claude-SearchBot and Claude-User', () => {
+    const result = renderRobotsTxt({ preset: 'citationFriendly' })
+    expect(blockFor(result, 'ClaudeBot')).toContain('Disallow: /')
+    expect(blockFor(result, 'Claude-SearchBot')).toContain('Allow: /')
+    expect(blockFor(result, 'Claude-User')).toContain('Allow: /')
+  })
+
+  it('does not let Allow: / override an explicit global disallow: ["/"] under RFC 9309', () => {
+    const result = renderRobotsTxt({ preset: 'citationFriendly', disallow: ['/'] })
+    const googlebot = blockFor(result, 'Googlebot')
+    expect(googlebot).toContain('Disallow: /')
+    expect(googlebot).not.toContain('Allow: /')
+  })
+
+  it('emits Content-Signal directive when configured', () => {
+    const result = renderRobotsTxt({
+      contentSignal: { aiTrain: 'no', search: 'yes', aiInput: 'yes' },
+    })
+    expect(globalBlock(result)).toContain('Content-Signal: ai-train=no, search=yes, ai-input=yes')
+  })
 })

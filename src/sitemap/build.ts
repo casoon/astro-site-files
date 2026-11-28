@@ -33,6 +33,23 @@ const BUILT_IN_SKIP: RegExp[] = [
 
 type SkipReason = 'built-in' | 'exclude' | 'filter'
 
+function normalizeComparableUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '') || '/'
+}
+
+function isNonCanonical(canonical: string | undefined, fullUrl: string, effectiveSiteUrl: string): boolean {
+  if (!canonical) return false
+  let resolvedCanonical = canonical
+  if (!/^https?:\/\//i.test(canonical) && effectiveSiteUrl) {
+    try {
+      resolvedCanonical = new URL(canonical, effectiveSiteUrl).href
+    } catch {
+      return false
+    }
+  }
+  return normalizeComparableUrl(resolvedCanonical) !== normalizeComparableUrl(fullUrl)
+}
+
 function skipReason(
   urlPath: string,
   userExcludes: (string | RegExp)[],
@@ -81,9 +98,11 @@ async function collectStaticEntries(
   const infos = await mapLimit(candidates, READ_CONCURRENCY, c => readPageInfo(outDir, c.urlPath))
 
   const excludeNoindex = sitemapOpts.excludeNoindex !== false
+  const excludeNonCanonical = sitemapOpts.excludeNonCanonical !== false
   const entries: SitemapEntry[] = []
   const redirectSkipped: string[] = []
   const noindexSkipped: string[] = []
+  const nonCanonicalSkipped: string[] = []
   for (const [i, candidate] of candidates.entries()) {
     const info = infos[i]!
     if (info.isRedirect) {
@@ -94,9 +113,13 @@ async function collectStaticEntries(
       noindexSkipped.push(candidate.urlPath)
       continue
     }
+    if (excludeNonCanonical && isNonCanonical(info.canonical, candidate.fullUrl, effectiveSiteUrl)) {
+      nonCanonicalSkipped.push(candidate.urlPath)
+      continue
+    }
     entries.push({
       loc: candidate.fullUrl,
-      lastmod: info.lastmod,
+      ...(info.lastmod ? { lastmod: info.lastmod } : {}),
       ...(info.changefreq ? { changefreq: info.changefreq } : {}),
       ...(info.priority !== undefined ? { priority: info.priority } : {}),
     })
@@ -105,6 +128,7 @@ async function collectStaticEntries(
   logSkipped(builtInSkipped, 'excluded by built-in rules', logger)
   logSkipped(redirectSkipped, 'excluded as meta-refresh redirect pages', logger)
   logSkipped(noindexSkipped, 'excluded because of <meta name="robots" content="noindex">', logger)
+  logSkipped(nonCanonicalSkipped, 'excluded because <link rel="canonical"> points to another URL', logger)
   return entries
 }
 

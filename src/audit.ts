@@ -50,7 +50,12 @@ const LEGAL_PATTERNS = [
   '/legal',
 ]
 
-export function auditRobots(options: RobotsOptions): AuditIssue[] {
+export interface RobotsAuditContext {
+  siteUrl?: string
+  hasLlms?: boolean
+}
+
+export function auditRobots(options: RobotsOptions, context?: RobotsAuditContext): AuditIssue[] {
   const issues: AuditIssue[] = []
 
   const blockedLegal = (options.disallow ?? []).filter(path =>
@@ -62,6 +67,52 @@ export function auditRobots(options: RobotsOptions): AuditIssue[] {
       rule: 'robots/legal-pages-blocked',
       message: `Legal pages are disallowed in robots.txt: ${blockedLegal.join(', ')}`,
       help: 'Search engines cannot read noindex tags on blocked pages. Legal pages (Datenschutz, AGB, Impressum) are generally safe to crawl — consider removing these Disallow rules.',
+    })
+  }
+
+  if (
+    options.preset === 'lockdown' ||
+    options.groups?.searchEngines === 'disallow' ||
+    options.bots?.Googlebot === 'disallow'
+  ) {
+    issues.push({
+      level: 'warn',
+      rule: 'robots/search-blocked',
+      message: 'Search engine crawling is disabled in robots.txt',
+      help: 'Verify this is intentional (e.g. staging environment). On production sites this prevents Google Search indexing.',
+    })
+  }
+
+  if (options.sitemap !== false && typeof options.sitemap !== 'string' && context && !context.siteUrl) {
+    issues.push({
+      level: 'warn',
+      rule: 'robots/no-sitemap-url',
+      message: 'robots.txt has no Sitemap directive because no site URL is configured',
+      help: 'Set `site` in astro.config.ts or pass `robots.sitemap` explicitly.',
+    })
+  }
+
+  if (
+    context?.hasLlms &&
+    (options.disallow ?? []).some(p => p === '/' || p === '/llms.txt' || p === '/llms-full.txt')
+  ) {
+    issues.push({
+      level: 'warn',
+      rule: 'robots/llms-blocked',
+      message: 'llms.txt is generated but disallowed in robots.txt',
+      help: 'Remove the blocking Disallow rule or add an explicit Allow for /llms.txt so AI crawlers can fetch it.',
+    })
+  }
+
+  if (options.preset === 'citationFriendly' || options.preset === 'blockTraining') {
+    const allowed = options.preset === 'citationFriendly'
+    issues.push({
+      level: 'info',
+      rule: 'robots/google-extended-note',
+      message: allowed
+        ? 'Google-Extended is allowed (enables Gemini App grounding and Gemini training; Google Search & AI Overviews are controlled by Googlebot)'
+        : 'Google-Extended is disallowed (blocks Gemini training and Gemini App grounding; Google Search & AI Overviews remain controlled by Googlebot)',
+      help: 'Override via `bots: { "Google-Extended": "allow" | "disallow" }` if you prefer the opposite trade-off.',
     })
   }
 

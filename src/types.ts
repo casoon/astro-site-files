@@ -42,12 +42,23 @@ export interface RegistryBot {
 
 export type Preset = 'seoOnly' | 'citationFriendly' | 'openToAi' | 'blockTraining' | 'lockdown'
 
+export interface ContentSignalOptions {
+  aiTrain?: 'yes' | 'no'
+  search?: 'yes' | 'no'
+  aiInput?: 'yes' | 'no'
+}
+
 export interface RobotsOptions {
   disallow?: string[]
   allow?: string[]
   /** true = auto-derive from site URL, string = explicit URL, false = omit */
   sitemap?: boolean | string
   crawlDelay?: number
+  /**
+   * Optional IETF AI Preferences / Cloudflare `Content-Signal` directive emitted
+   * in the global `User-agent: *` group, e.g. `{ aiTrain: 'no', search: 'yes', aiInput: 'yes' }`.
+   */
+  contentSignal?: string | ContentSignalOptions
   /**
    * Named preset — sets group defaults and per-bot rules for known crawlers.
    * Individual `bots` and `groups` options override the preset.

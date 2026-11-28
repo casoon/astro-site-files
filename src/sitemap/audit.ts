@@ -44,7 +44,7 @@ export function auditSitemap(
     })
   }
 
-  const invalid = entries.filter(e => e.priority < 0 || e.priority > 1)
+  const invalid = entries.filter(e => e.priority !== undefined && (e.priority < 0 || e.priority > 1))
   if (invalid.length > 0) {
     issues.push({
       level: 'warn',

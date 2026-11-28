@@ -8,6 +8,7 @@ export interface PageInfo {
   lastmod?: string
   isRedirect: boolean
   noindex: boolean
+  canonical?: string
   changefreq?: Changefreq
   priority?: number
 }
@@ -18,7 +19,60 @@ function pageFilePath(outDir: string, urlPath: string): string {
     : join(outDir, urlPath)
 }
 
-/** One open() per page — mtime, redirect detection and metadata all come from it. */
+function extractHead(content: string): string {
+  const headEnd = content.search(/<\/head>/i)
+  return headEnd === -1 ? content : content.slice(0, headEnd)
+}
+
+function hasMetaRefresh(head: string): boolean {
+  return /<meta\s[^>]*http-equiv=["']refresh["'][^>]*>/i.test(head)
+}
+
+function extractCanonical(head: string): string | undefined {
+  for (const match of head.matchAll(/<link\s+([^>]*)>/gi)) {
+    const attrs = match[1]!
+    const rel = /rel=["']([^"']*)["']/i.exec(attrs)?.[1]?.trim().toLowerCase()
+    if (rel !== 'canonical') continue
+    const href = /href=["']([^"']*)["']/i.exec(attrs)?.[1]?.trim()
+    if (href) return href
+  }
+  return undefined
+}
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}/
+
+function normalizeDate(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const trimmed = value.trim()
+  const match = ISO_DATE_RE.exec(trimmed)
+  return match ? match[0] : undefined
+}
+
+/**
+ * Extract a verifiable content modification date from the rendered page instead
+ * of using `dist/` file mtime (which is always the build timestamp and causes
+ * Google to ignore `<lastmod>` site-wide).
+ */
+function extractLastmod(head: string, content: string): string | undefined {
+  for (const match of head.matchAll(/<meta\s+([^>]*)>/gi)) {
+    const attrs = match[1]!
+    const prop = /(?:property|name)=["']([^"']*)["']/i.exec(attrs)?.[1]?.trim().toLowerCase()
+    if (prop === 'article:modified_time' || prop === 'og:updated_time') {
+      const val = /content=["']([^"']*)["']/i.exec(attrs)?.[1]
+      const date = normalizeDate(val)
+      if (date) return date
+    }
+  }
+  for (const match of content.matchAll(/<script\s+[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    const jsonText = match[1]!
+    const modMatch = /"dateModified"\s*:\s*"([^"]+)"/.exec(jsonText)
+    const date = normalizeDate(modMatch?.[1])
+    if (date) return date
+  }
+  return undefined
+}
+
+/** One open() per page — redirect detection, canonical, lastmod and metadata all come from it. */
 export async function readPageInfo(outDir: string, urlPath: string): Promise<PageInfo> {
   const primary = pageFilePath(outDir, urlPath)
   // A pathname without a trailing slash (a fallback route, say) still maps to a
@@ -31,14 +85,15 @@ export async function readPageInfo(outDir: string, urlPath: string): Promise<Pag
       const stats = await fh.stat()
       if (stats.isDirectory()) continue
       const content = await fh.readFile('utf-8')
-      const lastmod = stats.mtime.toISOString().split('T')[0]
-      if (content.slice(0, 512).toLowerCase().includes('<meta http-equiv="refresh"')) {
-        return { lastmod, isRedirect: true, noindex: false }
+      const head = extractHead(content)
+      if (hasMetaRefresh(head)) {
+        return { isRedirect: true, noindex: false }
       }
       return {
-        lastmod,
+        lastmod: extractLastmod(head, content),
         isRedirect: false,
-        noindex: hasNoindex(content),
+        noindex: hasNoindex(head),
+        canonical: extractCanonical(head),
         ...parseHtmlMetadata(content),
       }
     } finally {
@@ -52,9 +107,7 @@ export async function readPageInfo(outDir: string, urlPath: string): Promise<Pag
  * A page carrying `<meta name="robots" content="noindex">` must not be submitted
  * in a sitemap — Search Console reports it as an error. Only the `<head>` counts.
  */
-function hasNoindex(content: string): boolean {
-  const headEnd = content.search(/<\/head>/i)
-  const head = headEnd === -1 ? content : content.slice(0, headEnd)
+function hasNoindex(head: string): boolean {
   for (const match of head.matchAll(/<meta\s+([^>]*)>/gi)) {
     const attrs = match[1]!
     const name = /name=["']([^"']*)["']/i.exec(attrs)?.[1]?.trim().toLowerCase()
