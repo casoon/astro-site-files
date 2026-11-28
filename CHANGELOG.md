@@ -7,6 +7,8 @@ may change existing behaviour.
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-28
+
 ### Changed
 
 - **Pages:** the start page says in plain words what the plugin does: one card per generated file
@@ -14,6 +16,16 @@ may change existing behaviour.
 
 ### Fixed
 
+- **Robots:** `ClaudeBot` counts as a training-only crawler, so `citationFriendly` blocks Anthropic
+  training and keeps `Claude-SearchBot` and `Claude-User` allowed; `GoogleOther` is in the default
+  bot list; an explicit `disallow: ["/"]` is no longer overridden by an added `Allow: /`
+  (RFC 9309).
+- **Robots:** option `contentSignal` writes a `Content-Signal` line; the audit hints at blocked
+  search engines, a missing Sitemap URL, a blocked `llms.txt` and the `Google-Extended` duality.
+- **Sitemap:** `<lastmod>` comes only from a page's own modified date (`article:modified_time`,
+  `og:updated_time`, JSON-LD `dateModified`) instead of the build date; pages whose canonical
+  points elsewhere are left out (`excludeNonCanonical`); a meta refresh anywhere in `<head>` is
+  detected; `<changefreq>` and `<priority>` are optional (`includeDeprecatedTags`).
 - **Pages:** the preset comparison lists `ClaudeBot` under training-only crawlers, which it is
   since its reclassification; the start page failed to build before.
 
